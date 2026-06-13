@@ -19,12 +19,23 @@
 
 ---
 
-## Фаза 1 «Агент» — следующая
+## Фаза 1 «Агент» — в работе
 
 Цель: интерактивный чат с агентом, который управляет vault; дашборд «Сегодня».
 Главный сценарий: «разбери inbox», «спланируй мой день».
 
-### 1.1 `packages/agent` — абстракция и Claude-провайдер
+### 1.1 `packages/agent` — абстракция и Claude-провайдер ✅
+
+Сделано: `AgentProvider`/`AgentSession`/`AgentEvent` (types.ts), Channel/Gate
+для демультиплексирования стрима (channel.ts), `ClaudeAgentProvider` на
+@anthropic-ai/claude-agent-sdk (claude.ts) — streaming-input сессия, перевод
+SDK-сообщений в нормализованные события, профили разрешений read-only/
+vault-write/full с canUseTool и guard'ом «писать только внутри vault»,
+resume по sessionId, бюджеты maxTurns/maxCostUsd. Смоук-скрипт (smoke.ts).
+
+Заметки для 1.2: текстовые дельты идут из stream_event (includePartialMessages),
+полный assistant-блок используем только для tool_use. Модель не хардкожена —
+по умолчанию берётся из SDK; переопределяется SessionOptions.model.
 
 - Интерфейсы `AgentProvider` / `AgentSession` (ARCHITECTURE §4):
   `send() → AsyncIterable<AgentEvent>`, `interrupt()`, resume по sessionId.
@@ -55,11 +66,15 @@
 ### 1.3 Web: чат
 
 - Правая панель-чат (toggle, ширина ~380px), доступна с любой страницы.
+- Минималистичный инпут в духе референса пользователя: одна растущая
+  строка-плейсхолдер «Do anything», снизу строка действий (вложение,
+  выбор профиля разрешений, кнопка отправки). Стиль — после функциональности.
 - Стриминг markdown-ответа; tool-calls видимы свёрнутыми строками
-  («читает projects/...», «правит inbox/...»).
-- Inline-подтверждение permission_request (кнопки разрешить/отклонить).
+  («reading projects/...», «editing inbox/...»).
+- Inline-подтверждение permission_request (кнопки allow/deny).
 - Список прошлых сессий + продолжение (resume).
-- Из редактора документа — кнопка «обсудить с агентом» (передаёт docPath).
+- Из редактора документа — кнопка «Discuss with agent» (передаёт docPath).
+- UI на английском (см. корневой CLAUDE.md).
 - ✓ Критерий: задача, созданная агентом из чата, сразу видна в списке задач
   (SSE-инвалидация уже работает).
 
@@ -116,7 +131,11 @@
 
 1. **Тесты** (приоритет, лучше до фазы 1): vitest; core — round-trip
    frontmatter (даты!), detectKind, taskFromDoc; server — VaultService
-   (traversal, конфликты), IndexService (переиндексация, запросы).
+   (traversal, конфликты), IndexService (переиндексация, запросы);
+   agent — Channel/Gate, classify() профилей разрешений (без сети).
+0. **Перевести фазу-0 UI на английский** (быстрый, near-term): строки в
+   apps/web (Layout, TasksPage, ProjectsPage, DocsPage, Properties) и
+   STATUS/PRIORITY labels. Конвенция — английский по умолчанию.
 2. **Git-интеграция vault** (simple-git): `git init` при bootstrap,
    автокоммит после агентских сессий и батч-коммиты ручных правок.
 3. Rename/move документов (API + UI), создание из дерева по правому клику.

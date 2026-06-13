@@ -30,13 +30,35 @@ npm run dev
   проектов с прогрессом, дерево документов и WYSIWYG-редактор (TipTap)
   поверх markdown с правкой frontmatter.
 
+## Агент (фаза 1, в работе)
+
+Интеллектуальная работа делегируется агенту на базе Claude Agent SDK.
+Для запуска агента нужен доступ к Anthropic API:
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...   # ключ Anthropic API
+# либо облачный провайдер: CLAUDE_CODE_USE_BEDROCK=1 / CLAUDE_CODE_USE_VERTEX=1
+```
+
+Проверить связку (создаёт временный vault, просит агента создать файл):
+
+```bash
+npm run smoke -w @forma/agent   # без ключа — корректно пропускается
+```
+
+Профили разрешений сессии: `read-only` (только чтение), `vault-write`
+(правка файлов внутри vault, без внешних действий — для фоновых агентов),
+`full` (интерактив; опасные действия — через подтверждение). Запись за
+пределы vault блокируется в любом профиле.
+
 ## Структура
 
 ```
 apps/server    — Hono API: vault, индекс, вотчер, SSE
 apps/web       — React + Vite + TanStack + TipTap + Tailwind
 packages/core  — типы домена, парсинг frontmatter, конвенции vault
-docs/          — архитектура
+packages/agent — AgentProvider-абстракция + Claude-провайдер (фаза 1)
+docs/          — архитектура и план
 ```
 
 ## Дальше (по фазам)
