@@ -8,10 +8,10 @@ import { api } from '../api';
 import { isOverdue, PRIORITY_DOTS, STATUS_COLORS, STATUS_LABELS } from '../lib/labels';
 
 const FILTERS = [
-  { key: 'active', label: 'Активные' },
-  { key: 'inbox', label: 'Входящие' },
-  { key: 'done', label: 'Готово' },
-  { key: '', label: 'Все' },
+  { key: 'active', label: 'Active' },
+  { key: 'inbox', label: 'Inbox' },
+  { key: 'done', label: 'Done' },
+  { key: '', label: 'All' },
 ] as const;
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -38,7 +38,7 @@ function QuickAdd() {
       value={title}
       onChange={(e) => setTitle(e.target.value)}
       onKeyDown={(e) => e.key === 'Enter' && void add()}
-      placeholder="+ Быстрая задача в inbox (Enter)"
+      placeholder="+ Quick task to inbox (Enter)"
       className="w-full rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm shadow-sm focus:border-stone-400 focus:outline-none"
     />
   );
@@ -68,7 +68,7 @@ function TaskItem({ task }: { task: TaskRow }) {
       {task.priority && (
         <span
           className={clsx('h-2 w-2 shrink-0 rounded-full', PRIORITY_DOTS[task.priority])}
-          title={`приоритет: ${task.priority}`}
+          title={`priority: ${task.priority}`}
         />
       )}
       <Link
@@ -120,7 +120,7 @@ export function TasksPage() {
   return (
     <div className="mx-auto max-w-4xl px-8 py-6">
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">Задачи</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Tasks</h1>
         <div className="flex items-center gap-2">
           {FILTERS.map((f) => (
             <button
@@ -139,7 +139,7 @@ export function TasksPage() {
             onChange={(e) => setProjectFilter(e.target.value)}
             className="rounded-lg border border-stone-200 bg-white px-2 py-1 text-sm"
           >
-            <option value="">все проекты</option>
+            <option value="">All projects</option>
             {projects.data?.map((p) => (
               <option key={p.slug} value={p.slug}>
                 {p.title}
@@ -154,7 +154,7 @@ export function TasksPage() {
       </div>
 
       {tasks.data?.length === 0 && (
-        <div className="py-16 text-center text-sm text-stone-400">Задач нет</div>
+        <div className="py-16 text-center text-sm text-stone-400">No tasks</div>
       )}
 
       <div className="flex flex-col gap-5">

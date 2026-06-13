@@ -4,11 +4,13 @@ import clsx from 'clsx';
 import { useEffect, useRef, useState } from 'react';
 import type { SearchHit, VaultEvent } from '@forma/core';
 import { api } from '../api';
+import { ChatPanel } from './chat/ChatPanel';
+import { ChatProvider, useChat } from './chat/ChatProvider';
 
 const NAV = [
-  { to: '/tasks', label: 'Задачи', icon: '☑' },
-  { to: '/projects', label: 'Проекты', icon: '▤' },
-  { to: '/docs', label: 'Документы', icon: '✎' },
+  { to: '/tasks', label: 'Tasks', icon: '☑' },
+  { to: '/projects', label: 'Projects', icon: '▤' },
+  { to: '/docs', label: 'Docs', icon: '✎' },
 ] as const;
 
 /** Live-обновления: изменения vault (агент, внешний редактор) инвалидируют кеш. */
@@ -62,7 +64,7 @@ function SearchBox() {
         onChange={(e) => onChange(e.target.value)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         onFocus={() => query && setOpen(true)}
-        placeholder="Поиск…"
+        placeholder="Search…"
         className="w-full rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-sm focus:border-stone-400 focus:outline-none"
       />
       {open && hits.length > 0 && (
@@ -86,8 +88,9 @@ function SearchBox() {
   );
 }
 
-export function Layout() {
+function LayoutInner() {
   useVaultEvents();
+  const chat = useChat();
   return (
     <div className="flex h-screen">
       <aside className="flex w-56 shrink-0 flex-col gap-4 border-r border-stone-200 bg-white p-4">
@@ -113,11 +116,29 @@ export function Layout() {
             </Link>
           ))}
         </nav>
-        <div className="mt-auto px-1 text-xs text-stone-400">Forma · фаза 0</div>
+        <button
+          onClick={chat.toggle}
+          className={clsx(
+            'mt-auto flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm',
+            chat.isOpen ? 'bg-stone-100 font-medium text-stone-900' : 'text-stone-600 hover:bg-stone-100',
+          )}
+        >
+          <span className="opacity-60">✦</span>
+          Agent
+        </button>
       </aside>
       <main className="min-w-0 flex-1 overflow-auto">
         <Outlet />
       </main>
+      <ChatPanel />
     </div>
+  );
+}
+
+export function Layout() {
+  return (
+    <ChatProvider>
+      <LayoutInner />
+    </ChatProvider>
   );
 }

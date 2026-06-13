@@ -26,7 +26,7 @@ function NewDocForm({ onCreated }: { onCreated: (path: string) => void }) {
       setError(null);
       onCreated(rel);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'не удалось создать');
+      setError(e instanceof Error ? e.message : 'could not create');
     }
   };
 
@@ -36,7 +36,7 @@ function NewDocForm({ onCreated }: { onCreated: (path: string) => void }) {
         onClick={() => setOpen(true)}
         className="mx-2 mb-1 rounded-lg border border-dashed border-stone-300 px-3 py-1.5 text-left text-sm text-stone-500 hover:border-stone-400 hover:text-stone-700"
       >
-        + Новый документ
+        + New document
       </button>
     );
   }
@@ -55,7 +55,7 @@ function NewDocForm({ onCreated }: { onCreated: (path: string) => void }) {
         className="rounded-lg border border-stone-300 px-2 py-1.5 font-mono text-xs focus:border-stone-500 focus:outline-none"
       />
       {error && <div className="text-xs text-rose-600">{error}</div>}
-      <div className="text-[10px] text-stone-400">Enter — создать, Esc — отмена</div>
+      <div className="text-[10px] text-stone-400">Enter to create, Esc to cancel</div>
     </div>
   );
 }
@@ -81,12 +81,12 @@ export function DocsPage() {
       <div className="min-w-0 flex-1">
         {!path && (
           <div className="flex h-full items-center justify-center text-sm text-stone-400">
-            Выберите документ слева или создайте новый
+            Select a document on the left or create a new one
           </div>
         )}
         {path && doc.isError && (
           <div className="flex h-full items-center justify-center text-sm text-rose-500">
-            Не удалось открыть {path}
+            Could not open {path}
           </div>
         )}
         {path && doc.data && (

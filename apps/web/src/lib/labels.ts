@@ -1,12 +1,12 @@
 import type { TaskPriority, TaskStatus } from '@forma/core';
 
 export const STATUS_LABELS: Record<TaskStatus, string> = {
-  inbox: 'Входящие',
-  todo: 'Сделать',
-  in_progress: 'В работе',
-  blocked: 'Заблокировано',
-  done: 'Готово',
-  cancelled: 'Отменено',
+  inbox: 'Inbox',
+  todo: 'To do',
+  in_progress: 'In progress',
+  blocked: 'Blocked',
+  done: 'Done',
+  cancelled: 'Cancelled',
 };
 
 export const STATUS_COLORS: Record<TaskStatus, string> = {
@@ -19,10 +19,10 @@ export const STATUS_COLORS: Record<TaskStatus, string> = {
 };
 
 export const PRIORITY_LABELS: Record<TaskPriority, string> = {
-  low: 'низкий',
-  normal: 'обычный',
-  high: 'высокий',
-  urgent: 'срочно',
+  low: 'low',
+  normal: 'normal',
+  high: 'high',
+  urgent: 'urgent',
 };
 
 export const PRIORITY_DOTS: Record<TaskPriority, string> = {

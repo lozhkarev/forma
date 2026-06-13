@@ -6,6 +6,7 @@ import type {
   TaskRow,
   TreeNode,
 } from '@forma/core';
+import type { PermissionProfile, PersistedRecord, SessionSummary } from './lib/chat';
 
 class ApiError extends Error {
   constructor(
@@ -68,4 +69,42 @@ export const api = {
   projects: () => request<ProjectRow[]>('/api/projects'),
 
   search: (q: string) => request<SearchHit[]>(`/api/search?q=${encodeURIComponent(q)}`),
+
+  agent: {
+    listSessions: () => request<SessionSummary[]>('/api/agent/sessions'),
+
+    createSession: (opts: { permission?: PermissionProfile; contextDocPath?: string | null }) =>
+      request<SessionSummary>('/api/agent/sessions', {
+        method: 'POST',
+        body: JSON.stringify(opts),
+      }),
+
+    resumeSession: (id: string) =>
+      request<SessionSummary>('/api/agent/sessions', {
+        method: 'POST',
+        body: JSON.stringify({ resume: id }),
+      }),
+
+    getSession: (id: string) =>
+      request<{ summary: SessionSummary; transcript: PersistedRecord[] }>(
+        `/api/agent/sessions/${encodeURIComponent(id)}`,
+      ),
+
+    sendMessage: (id: string, text: string) =>
+      request<{ ok: boolean }>(`/api/agent/sessions/${encodeURIComponent(id)}/messages`, {
+        method: 'POST',
+        body: JSON.stringify({ text }),
+      }),
+
+    resolvePermission: (id: string, requestId: string, decision: 'allow' | 'deny') =>
+      request<{ ok: boolean }>(
+        `/api/agent/sessions/${encodeURIComponent(id)}/permissions/${encodeURIComponent(requestId)}`,
+        { method: 'POST', body: JSON.stringify({ decision }) },
+      ),
+
+    interrupt: (id: string) =>
+      request<{ ok: boolean }>(`/api/agent/sessions/${encodeURIComponent(id)}/interrupt`, {
+        method: 'POST',
+      }),
+  },
 };

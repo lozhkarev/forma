@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import { Markdown } from 'tiptap-markdown';
 import type { DocFile } from '@forma/core';
 import { api, isConflict } from '../api';
+import { useChat } from './chat/ChatProvider';
 import { Properties } from './Properties';
 
 function getMarkdown(editor: TiptapEditor): string {
@@ -26,6 +27,7 @@ interface Props {
  */
 export function Editor({ doc, onDeleted }: Props) {
   const queryClient = useQueryClient();
+  const chat = useChat();
   // загруженная версия: от неё считаем dirty и оптимистичную блокировку
   const [loaded, setLoaded] = useState(doc);
   const [frontmatter, setFrontmatter] = useState(doc.frontmatter);
@@ -82,7 +84,7 @@ export function Editor({ doc, onDeleted }: Props) {
       setExternalChange(false);
       void queryClient.invalidateQueries({ queryKey: ['doc', loaded.path] });
     } catch (err) {
-      if (isConflict(err) && window.confirm('Файл изменился на диске. Перезаписать вашей версией?')) {
+      if (isConflict(err) && window.confirm('File changed on disk. Overwrite with your version?')) {
         await save(true);
       }
     } finally {
@@ -91,7 +93,7 @@ export function Editor({ doc, onDeleted }: Props) {
   };
 
   const remove = async () => {
-    if (!window.confirm(`Удалить ${loaded.path}?`)) return;
+    if (!window.confirm(`Delete ${loaded.path}?`)) return;
     await api.deleteDoc(loaded.path);
     onDeleted();
   };
@@ -115,22 +117,29 @@ export function Editor({ doc, onDeleted }: Props) {
           <button
             onClick={() => applyDoc(doc)}
             className="rounded-lg bg-amber-100 px-3 py-1 text-xs text-amber-800 hover:bg-amber-200"
-            title="Файл изменён снаружи. Нажмите, чтобы перечитать (ваши правки будут потеряны)."
+            title="File changed on disk. Click to reload (your edits will be lost)."
           >
-            ⟳ изменён на диске
+            ⟳ changed on disk
           </button>
         )}
+        <button
+          onClick={() => chat.startWithDoc(loaded.path)}
+          className="rounded-lg px-3 py-1.5 text-sm text-stone-500 hover:bg-stone-100"
+          title="Discuss this document with the agent"
+        >
+          ✦ Discuss
+        </button>
         <button
           onClick={() => void save()}
           disabled={!changed || saving}
           className="rounded-lg bg-stone-900 px-4 py-1.5 text-sm text-white disabled:bg-stone-300"
         >
-          {saving ? 'Сохраняю…' : changed ? 'Сохранить' : 'Сохранено'}
+          {saving ? 'Saving…' : changed ? 'Save' : 'Saved'}
         </button>
         <button
           onClick={() => void remove()}
           className="rounded-lg px-2 py-1.5 text-sm text-stone-400 hover:bg-rose-50 hover:text-rose-600"
-          title="Удалить документ"
+          title="Delete document"
         >
           🗑
         </button>

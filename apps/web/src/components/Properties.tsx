@@ -37,7 +37,7 @@ export function Properties({ frontmatter, onChange }: Props) {
       onChange(yamlToObject(yamlDraft));
       setYamlMode(false);
     } catch (e) {
-      setYamlError(e instanceof Error ? e.message : 'некорректный YAML');
+      setYamlError(e instanceof Error ? e.message : 'invalid YAML');
     }
   };
 
@@ -54,10 +54,10 @@ export function Properties({ frontmatter, onChange }: Props) {
         {yamlError && <div className="mt-1 text-xs text-rose-600">{yamlError}</div>}
         <div className="mt-2 flex gap-2">
           <button onClick={applyYaml} className="rounded bg-stone-900 px-3 py-1 text-xs text-white">
-            Применить
+            Apply
           </button>
           <button onClick={() => setYamlMode(false)} className="rounded px-3 py-1 text-xs text-stone-500">
-            Отмена
+            Cancel
           </button>
         </div>
       </div>
@@ -91,7 +91,7 @@ export function Properties({ frontmatter, onChange }: Props) {
           </span>
         ))}
       <button onClick={openYaml} className="rounded-lg px-2 py-1 text-xs text-stone-400 hover:bg-stone-100">
-        {entries.length > 0 ? 'править YAML' : '+ свойства'}
+        {entries.length > 0 ? 'edit YAML' : '+ properties'}
       </button>
     </div>
   );

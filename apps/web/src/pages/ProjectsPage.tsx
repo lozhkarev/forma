@@ -37,10 +37,10 @@ function ProjectCard({ project }: { project: ProjectRow }) {
         )}
       </div>
       <div className="mb-3 text-xs text-stone-500">
-        {active > 0 ? `${active} активных задач` : 'нет активных задач'}
+        {active > 0 ? `${active} active tasks` : 'no active tasks'}
         {project.due && (
           <span className={clsx('ml-2', isOverdue(project.due) && 'font-medium text-rose-600')}>
-            до {project.due}
+            due {project.due}
           </span>
         )}
       </div>
@@ -60,13 +60,13 @@ export function ProjectsPage() {
   return (
     <div className="mx-auto max-w-4xl px-8 py-6">
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">Проекты</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Projects</h1>
         <span className="text-xs text-stone-400">
-          проект — это projects/&lt;slug&gt;/project.md в vault
+          a project is projects/&lt;slug&gt;/project.md in the vault
         </span>
       </div>
       {projects.data?.length === 0 && (
-        <div className="py-16 text-center text-sm text-stone-400">Проектов пока нет</div>
+        <div className="py-16 text-center text-sm text-stone-400">No projects yet</div>
       )}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {projects.data?.map((p) => (
