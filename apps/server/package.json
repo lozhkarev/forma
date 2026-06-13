@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@forma/agent": "*",
     "@forma/core": "*",
     "@hono/node-server": "^1.13.0",
     "chokidar": "^4.0.0",

@@ -107,6 +107,9 @@ class ClaudeAgentSession implements AgentSession {
       }
     } catch (err) {
       this.turn?.push({ type: 'error', message: err instanceof Error ? err.message : String(err) });
+    } finally {
+      // Stream ended (session closed or interrupted without a final result):
+      // make sure the in-flight turn's iterator terminates instead of hanging.
       this.turn?.close();
     }
   }

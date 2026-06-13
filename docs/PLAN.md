@@ -49,19 +49,34 @@ resume по sessionId, бюджеты maxTurns/maxCostUsd. Смоук-скрип
   маппинг на permission-настройки SDK; запрет записи вне vault.
 - ✓ Критерий: смоук-скрипт — сессия отвечает и создаёт файл в тестовом vault.
 
-### 1.2 Server: AgentRuntime + API
+### 1.2 Server: AgentRuntime + API ✅
 
-- `POST /api/agent/sessions` — создать сессию (опц. `docPath` для контекста).
-- `POST /api/agent/sessions/:id/messages` — сообщение пользователя.
-- `GET  /api/agent/sessions/:id/stream` — SSE событий сессии.
-- `POST /api/agent/sessions/:id/permissions/:reqId` — allow/deny.
+Сделано: `AgentRuntime`/`RuntimeSession` (runtime.ts), маршруты (agent-api.ts),
+смонтированы как `/api/agent/*`. Эндпоинты:
+- `POST /api/agent/sessions` — создать (body: permission, contextDocPath,
+  model) или `{resume: <id>}` — переподключиться к сохранённому чату.
+- `GET  /api/agent/sessions` — список (из `chats/<id>/meta.md`), newest-first.
+- `GET  /api/agent/sessions/:id` — summary + полный transcript (для истории).
+- `POST /api/agent/sessions/:id/messages` — сообщение (202, ход в фоне).
+- `GET  /api/agent/sessions/:id/stream` — SSE: реплей буфера + live (event: record).
+- `POST /api/agent/sessions/:id/permissions/:reqId` — {decision: allow|deny}.
 - `POST /api/agent/sessions/:id/interrupt`.
-- `GET  /api/agent/sessions` — список сессий (читается из `vault/chats/`).
-- Персист: `vault/chats/<YYYY-MM-DD>-<slug>/transcript.jsonl` (события),
-  `meta.md` (frontmatter: started, cost, turns, title).
-- Очередь: лимит параллельных сессий (по умолчанию 2), таймаут/maxTurns.
-- ✓ Критерий: curl-сценарий «создай задачу X в inbox» → файл появился,
-  события стримятся, transcript сохранён.
+
+Персист: `chats/<YYYY-MM-DD>-<rand>/transcript.jsonl` (по записи на событие,
+включая user) + `meta.md` (frontmatter: type, title, started, lastActive,
+providerSessionId, permission, costUsd, turns). Очередь: глобальный семафор
+(FORMA_MAX_CONCURRENT=2) + посменная обработка на сессию; бюджеты
+FORMA_MAX_TURNS/FORMA_MAX_COST_USD; модель FORMA_AGENT_MODEL (def sonnet).
+
+✓ Проверено вживую: create → SSE-стрим (user/session/tool_use/tool_result/
+text_delta/result) → агент создал inbox/buy-milk.md (попал в индекс) →
+transcript сохранён, listSessions читает чаты. PASS.
+
+Заметки для 1.3 (web): SSE отдаёт `event: record` с `{t, record}`, где record —
+наш `AgentEvent` или `{type:'user',text}`. Поток сообщения: POST messages
+(быстрый 202) → события прилетают по уже открытому stream. permission_request
+→ показать кнопки → POST permissions/:reqId. Файлы, которые агент создаёт в
+vault, уже инвалидируют списки задач через существующий `/api/events`.
 
 ### 1.3 Web: чат
 
