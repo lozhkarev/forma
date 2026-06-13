@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../api';
 import {
   foldRecords,
+  type AgentModel,
   type PermissionProfile,
   type PersistedRecord,
   type SessionSummary,
@@ -20,11 +21,21 @@ export function ChatPanel() {
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [permission, setPermission] = useState<PermissionProfile>('full');
+  const [models, setModels] = useState<AgentModel[]>([]);
+  const [model, setModel] = useState<string>('');
   const [contextDoc, setContextDoc] = useState<string | null>(null);
   const [records, setRecords] = useState<PersistedRecord[]>([]);
   const [resolved, setResolved] = useState<Set<string>>(new Set());
   const [history, setHistory] = useState<SessionSummary[] | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Load the available models once and pick the server default.
+  useEffect(() => {
+    void api.agent.listModels().then(({ models: list, default: def }) => {
+      setModels(list);
+      setModel((current) => current || def);
+    });
+  }, []);
 
   // A document handed in from the editor ("Discuss with agent") starts a fresh chat.
   useEffect(() => {
@@ -65,7 +76,11 @@ export function ChatPanel() {
   const send = async (text: string) => {
     let id = activeId;
     if (!id) {
-      const session = await api.agent.createSession({ permission, contextDocPath: contextDoc });
+      const session = await api.agent.createSession({
+        permission,
+        model: model || undefined,
+        contextDocPath: contextDoc,
+      });
       id = session.id;
       setActiveId(id);
     }
@@ -101,6 +116,7 @@ export function ChatPanel() {
   const resume = async (summary: SessionSummary) => {
     await api.agent.resumeSession(summary.id);
     setPermission(summary.permission);
+    setModel(summary.model);
     setContextDoc(summary.contextDocPath);
     setResolved(new Set());
     setHistory(null);
@@ -168,9 +184,13 @@ export function ChatPanel() {
           </div>
         )}
         <ChatInput
-          permission={activeId ? permission : permission}
+          permission={permission}
           permissionLocked={Boolean(activeId)}
           onPermissionChange={setPermission}
+          models={models}
+          model={model}
+          modelLocked={Boolean(activeId)}
+          onModelChange={setModel}
           onSend={send}
           busy={busy}
           onInterrupt={interrupt}

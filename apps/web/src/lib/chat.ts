@@ -35,12 +35,19 @@ export interface SessionSummary {
   id: string;
   title: string | null;
   permission: PermissionProfile;
+  model: string;
   providerSessionId: string | null;
   createdAt: string;
   lastActive: string;
   costUsd: number;
   turns: number;
   contextDocPath: string | null;
+}
+
+export interface AgentModel {
+  id: string;
+  label: string;
+  description?: string;
 }
 
 /** A renderable chat item, assembled from the flat record stream. */

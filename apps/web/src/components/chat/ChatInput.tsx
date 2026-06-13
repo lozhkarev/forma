@@ -1,11 +1,15 @@
 import { useLayoutEffect, useRef, useState } from 'react';
-import type { PermissionProfile } from '../../lib/chat';
+import type { AgentModel, PermissionProfile } from '../../lib/chat';
 import { permissionLabel } from '../../lib/chat';
 
 interface Props {
   permission: PermissionProfile;
   permissionLocked: boolean;
   onPermissionChange: (p: PermissionProfile) => void;
+  models: AgentModel[];
+  model: string;
+  modelLocked: boolean;
+  onModelChange: (id: string) => void;
   onSend: (text: string) => void;
   busy: boolean;
   onInterrupt: () => void;
@@ -18,6 +22,10 @@ export function ChatInput({
   permission,
   permissionLocked,
   onPermissionChange,
+  models,
+  model,
+  modelLocked,
+  onModelChange,
   onSend,
   busy,
   onInterrupt,
@@ -70,6 +78,19 @@ export function ChatInput({
           ))}
         </select>
         <div className="ml-auto" />
+        <select
+          value={model}
+          disabled={modelLocked || models.length === 0}
+          onChange={(e) => onModelChange(e.target.value)}
+          className="rounded-md px-1.5 py-1 text-xs hover:bg-stone-100 disabled:opacity-60"
+          title={modelLocked ? 'Model is fixed for an active chat' : 'Model for this chat'}
+        >
+          {models.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.label}
+            </option>
+          ))}
+        </select>
         {busy ? (
           <button
             onClick={onInterrupt}

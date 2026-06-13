@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import type { PermissionProfile } from '@forma/agent';
+import { AGENT_MODEL } from './config.js';
+import { modelsWithDefault } from './models.js';
 import { VaultError } from './vault.js';
 import type { AgentRuntime } from './runtime.js';
 
@@ -22,6 +24,8 @@ interface PermissionBody {
 
 export function createAgentRoutes(runtime: AgentRuntime): Hono {
   const app = new Hono();
+
+  app.get('/models', (c) => c.json(modelsWithDefault(AGENT_MODEL)));
 
   app.get('/sessions', async (c) => c.json(await runtime.listSessions()));
 

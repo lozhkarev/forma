@@ -6,7 +6,7 @@ import type {
   TaskRow,
   TreeNode,
 } from '@forma/core';
-import type { PermissionProfile, PersistedRecord, SessionSummary } from './lib/chat';
+import type { AgentModel, PermissionProfile, PersistedRecord, SessionSummary } from './lib/chat';
 
 class ApiError extends Error {
   constructor(
@@ -71,9 +71,15 @@ export const api = {
   search: (q: string) => request<SearchHit[]>(`/api/search?q=${encodeURIComponent(q)}`),
 
   agent: {
+    listModels: () => request<{ models: AgentModel[]; default: string }>('/api/agent/models'),
+
     listSessions: () => request<SessionSummary[]>('/api/agent/sessions'),
 
-    createSession: (opts: { permission?: PermissionProfile; contextDocPath?: string | null }) =>
+    createSession: (opts: {
+      permission?: PermissionProfile;
+      model?: string;
+      contextDocPath?: string | null;
+    }) =>
       request<SessionSummary>('/api/agent/sessions', {
         method: 'POST',
         body: JSON.stringify(opts),

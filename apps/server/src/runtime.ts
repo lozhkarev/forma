@@ -24,6 +24,7 @@ export interface SessionSummary {
   id: string;
   title: string | null;
   permission: PermissionProfile;
+  model: string;
   providerSessionId: string | null;
   createdAt: string;
   lastActive: string;
@@ -130,6 +131,7 @@ export class RuntimeSession {
     readonly id: string,
     readonly dir: string,
     readonly permission: PermissionProfile,
+    readonly model: string,
     readonly contextDocPath: string | null,
     readonly createdAt: string,
     private agent: AgentSession,
@@ -143,6 +145,7 @@ export class RuntimeSession {
       id: this.id,
       title: this.title,
       permission: this.permission,
+      model: this.model,
       providerSessionId: this.providerSessionId,
       createdAt: this.createdAt,
       lastActive: this.lastActive,
@@ -249,6 +252,7 @@ export class RuntimeSession {
       lastActive: this.lastActive,
       providerSessionId: this.providerSessionId,
       permission: this.permission,
+      model: this.model,
       costUsd: Number(this.costUsd.toFixed(4)),
       turns: this.turns,
       ...(this.contextDocPath ? { contextDoc: this.contextDocPath } : {}),
@@ -282,6 +286,7 @@ export class AgentRuntime {
     model?: string;
   }): Promise<RuntimeSession> {
     const permission = opts.permission ?? 'full';
+    const model = opts.model ?? this.config.model ?? 'claude-sonnet-4-6';
     const id = `${nowIso().slice(0, 10)}-${randomBytes(3).toString('hex')}`;
     const dir = path.join(this.chatsDir, id);
     await fs.mkdir(dir, { recursive: true });
@@ -289,7 +294,7 @@ export class AgentRuntime {
     const agent = this.provider.createSession({
       vaultRoot: this.vaultRoot,
       permission,
-      model: opts.model ?? this.config.model,
+      model,
       maxTurns: this.config.maxTurns,
       maxCostUsd: this.config.maxCostUsd,
     });
@@ -298,6 +303,7 @@ export class AgentRuntime {
       id,
       dir,
       permission,
+      model,
       opts.contextDocPath ?? null,
       nowIso(),
       agent,
@@ -322,13 +328,17 @@ export class AgentRuntime {
     }
     const { frontmatter } = parseDoc(metaRaw);
     const permission = (frontmatter['permission'] as PermissionProfile) ?? 'full';
+    const model =
+      typeof frontmatter['model'] === 'string'
+        ? frontmatter['model']
+        : (this.config.model ?? 'claude-sonnet-4-6');
     const providerSessionId =
       typeof frontmatter['providerSessionId'] === 'string' ? frontmatter['providerSessionId'] : undefined;
 
     const agent = this.provider.createSession({
       vaultRoot: this.vaultRoot,
       permission,
-      model: this.config.model,
+      model,
       maxTurns: this.config.maxTurns,
       maxCostUsd: this.config.maxCostUsd,
       resumeSessionId: providerSessionId,
@@ -336,7 +346,7 @@ export class AgentRuntime {
 
     const createdAt = typeof frontmatter['started'] === 'string' ? frontmatter['started'] : nowIso();
     const contextDoc = typeof frontmatter['contextDoc'] === 'string' ? frontmatter['contextDoc'] : null;
-    const session = new RuntimeSession(id, dir, permission, contextDoc, createdAt, agent, this.semaphore);
+    const session = new RuntimeSession(id, dir, permission, model, contextDoc, createdAt, agent, this.semaphore);
     session.title = typeof frontmatter['title'] === 'string' ? frontmatter['title'] : null;
     session.providerSessionId = providerSessionId ?? null;
     session.costUsd = typeof frontmatter['costUsd'] === 'number' ? frontmatter['costUsd'] : 0;
@@ -372,6 +382,7 @@ export class AgentRuntime {
           id,
           title: (frontmatter['title'] as string) ?? null,
           permission: (frontmatter['permission'] as PermissionProfile) ?? 'full',
+          model: (frontmatter['model'] as string) ?? (this.config.model ?? 'claude-sonnet-4-6'),
           providerSessionId: (frontmatter['providerSessionId'] as string) ?? null,
           createdAt: (frontmatter['started'] as string) ?? '',
           lastActive: (frontmatter['lastActive'] as string) ?? '',
