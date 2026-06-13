@@ -1,0 +1,23 @@
+{
+  "name": "forma",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "FORMA_VAULT=$(pwd)/vault concurrently -n server,web -c blue,green \"npm run dev -w @forma/server\" \"npm run dev -w @forma/web\"",
+    "dev:server": "FORMA_VAULT=$(pwd)/vault npm run dev -w @forma/server",
+    "dev:web": "npm run dev -w @forma/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

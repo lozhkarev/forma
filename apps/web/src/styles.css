@@ -1,0 +1,29 @@
+@import 'tailwindcss';
+@plugin "@tailwindcss/typography";
+
+body {
+  @apply bg-stone-50 text-stone-900 antialiased;
+}
+
+/* Редактор */
+.ProseMirror {
+  min-height: 16rem;
+}
+.ProseMirror:focus {
+  outline: none;
+}
+.prose ul[data-type='taskList'] {
+  list-style: none;
+  padding-left: 0.25rem;
+}
+.prose ul[data-type='taskList'] li {
+  display: flex;
+  gap: 0.5rem;
+}
+.prose ul[data-type='taskList'] li > label {
+  margin-top: 0.3rem;
+}
+
+mark {
+  @apply rounded bg-amber-200 px-0.5;
+}

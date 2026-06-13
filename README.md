@@ -1,2 +1,47 @@
-# forma
-AI based knowledge base and project management workspace
+# Forma
+
+AI-воркспейс: база знаний и проектные задачи в локальном файловом vault,
+интеллектуальная работа делегируется подключённому агенту.
+Архитектура — в [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Быстрый старт
+
+Нужен Node.js ≥ 24.
+
+```bash
+npm install
+npm run dev
+```
+
+- веб-интерфейс: http://localhost:5173
+- API-сервер: http://localhost:8787
+- vault (данные): `./vault` — создаётся и наполняется стартовым контентом
+  при первом запуске; путь переопределяется переменной `FORMA_VAULT`.
+
+## Что уже есть (фаза 0)
+
+- **Vault** — markdown-файлы с frontmatter как источник истины;
+  совместим с Obsidian, готов к git.
+- **Индекс** — SQLite + FTS5 (встроенный `node:sqlite`, без нативных
+  зависимостей), вотчер подхватывает внешние правки файлов.
+- **REST + SSE** — документы, задачи, проекты, полнотекстовый поиск,
+  live-обновления интерфейса.
+- **UI** — задачи (фильтры, быстрый ввод, смена статусов), карточки
+  проектов с прогрессом, дерево документов и WYSIWYG-редактор (TipTap)
+  поверх markdown с правкой frontmatter.
+
+## Структура
+
+```
+apps/server    — Hono API: vault, индекс, вотчер, SSE
+apps/web       — React + Vite + TanStack + TipTap + Tailwind
+packages/core  — типы домена, парсинг frontmatter, конвенции vault
+docs/          — архитектура
+```
+
+## Дальше (по фазам)
+
+1. Чат с агентом (Claude Agent SDK), дашборды «Сегодня»/«Неделя»
+2. Кастомные агенты по расписанию/триггерам, UI для MCP и skills
+3. Контур знаний: дистилляция raw → wiki, отчёты, weekly review
+4. Десктоп под macOS (Tauri)
