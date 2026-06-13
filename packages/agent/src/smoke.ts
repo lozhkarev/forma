@@ -2,9 +2,12 @@
  * Phase 1.1 acceptance check: a vault-write session answers and creates a
  * file in a throwaway vault. Run with `npm run smoke -w @forma/agent`.
  *
- * Requires ANTHROPIC_API_KEY (or a configured cloud provider). Skips with a
- * clear message — and exit code 0 — if no credentials are present, so it is
- * safe in CI.
+ * Requires credentials: ANTHROPIC_API_KEY, ANTHROPIC_AUTH_TOKEN (e.g. a
+ * gateway bearer token together with ANTHROPIC_BASE_URL), or a configured
+ * cloud provider. Skips with a clear message — and exit code 0 — if none are
+ * present, so it is safe in CI.
+ *
+ * Override the model with FORMA_AGENT_MODEL (defaults to a Sonnet id).
  */
 import { mkdtemp, mkdir, rm, readFile, writeFile, stat } from 'node:fs/promises';
 import os from 'node:os';
@@ -13,9 +16,18 @@ import { ClaudeAgentProvider, type AgentEvent } from './index.js';
 
 const MARKER = 'forma-smoke-ok';
 
+function hasCredentials(): boolean {
+  return Boolean(
+    process.env.ANTHROPIC_API_KEY ||
+      process.env.ANTHROPIC_AUTH_TOKEN ||
+      process.env.CLAUDE_CODE_USE_BEDROCK ||
+      process.env.CLAUDE_CODE_USE_VERTEX,
+  );
+}
+
 async function main(): Promise<void> {
-  if (!process.env.ANTHROPIC_API_KEY && !process.env.CLAUDE_CODE_USE_BEDROCK && !process.env.CLAUDE_CODE_USE_VERTEX) {
-    console.log('⊘ skipped: set ANTHROPIC_API_KEY to run the agent smoke test');
+  if (!hasCredentials()) {
+    console.log('⊘ skipped: set ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN to run the agent smoke test');
     return;
   }
 
@@ -31,7 +43,8 @@ async function main(): Promise<void> {
   const session = provider.createSession({
     vaultRoot: root,
     permission: 'vault-write',
-    maxTurns: 6,
+    model: process.env.FORMA_AGENT_MODEL ?? 'claude-sonnet-4-6',
+    maxTurns: 10,
     maxCostUsd: 0.5,
   });
 

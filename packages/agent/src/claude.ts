@@ -1,3 +1,4 @@
+import { realpathSync } from 'node:fs';
 import path from 'node:path';
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import { Channel, Gate } from './channel.js';
@@ -28,8 +29,16 @@ class ClaudeAgentSession implements AgentSession {
   private query: ReturnType<typeof query> | null = null;
   private pendingPermissions = new Map<string, (d: 'allow' | 'deny') => void>();
   private permCounter = 0;
+  /**
+   * Canonical vault path. The SDK reports tool inputs with symlinks resolved
+   * (e.g. macOS /var → /private/var), so the containment guard must compare
+   * against the real path or it would reject legitimate in-vault writes.
+   */
+  private readonly root: string;
 
-  constructor(private opts: SessionOptions) {}
+  constructor(private opts: SessionOptions) {
+    this.root = canonical(opts.vaultRoot);
+  }
 
   send(message: UserMessage): AsyncIterable<AgentEvent> {
     if (!this.query) this.start();
@@ -67,7 +76,7 @@ class ClaudeAgentSession implements AgentSession {
     this.query = query({
       prompt: this.inputStream() as any,
       options: {
-        cwd: opts.vaultRoot,
+        cwd: this.root,
         // Load vault/.claude/CLAUDE.md and skills, but not the host machine's
         // user/local settings.
         settingSources: ['project'],
@@ -202,8 +211,27 @@ class ClaudeAgentSession implements AgentSession {
   private isInsideVault(input: unknown): boolean {
     const filePath = (input as { file_path?: unknown } | null)?.file_path;
     if (typeof filePath !== 'string') return false;
-    const abs = path.resolve(this.opts.vaultRoot, filePath);
-    return abs === this.opts.vaultRoot || abs.startsWith(this.opts.vaultRoot + path.sep);
+    // Resolve against the canonical root, then canonicalize the closest
+    // existing ancestor so symlinks in the target path don't fool the check.
+    const abs = canonical(path.resolve(this.root, filePath));
+    return abs === this.root || abs.startsWith(this.root + path.sep);
+  }
+}
+
+/** Real (symlink-resolved) path, falling back to a normalized path if the
+ * target (or its ancestors) does not exist yet. */
+function canonical(p: string): string {
+  const resolved = path.resolve(p);
+  try {
+    return realpathSync(resolved);
+  } catch {
+    const parent = path.dirname(resolved);
+    if (parent === resolved) return resolved;
+    try {
+      return path.join(realpathSync(parent), path.basename(resolved));
+    } catch {
+      return resolved;
+    }
   }
 }
 
