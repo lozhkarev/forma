@@ -1,3 +1,4 @@
+import './env.js'; // must run before config.js reads process.env
 import { serve } from '@hono/node-server';
 import { createApi } from './api.js';
 import {
