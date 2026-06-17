@@ -77,6 +77,11 @@ export function createAgentRoutes(runtime: AgentRuntime): Hono {
     return c.json({ ok: true });
   });
 
+  app.post('/sessions/:id/summarize', async (c) => {
+    const outcome = await runtime.summarizeSession(c.req.param('id'), true);
+    return c.json({ ok: outcome?.ok ?? false, skipped: outcome === null });
+  });
+
   app.get('/sessions/:id/stream', (c) => {
     const session = runtime.get(c.req.param('id'));
     if (!session) throw new VaultError('session is not live; resume it first', 409);

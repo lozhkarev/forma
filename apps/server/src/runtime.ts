@@ -130,6 +130,8 @@ export class RuntimeSession {
   costUsd = 0;
   turns = 0;
   lastActive: string;
+  /** Called after each completed turn (used to (re)arm the idle summary). */
+  onActivity: (() => void) | null = null;
 
   private bus = new EventBus();
   private queue: string[] = [];
@@ -240,6 +242,7 @@ export class RuntimeSession {
           await this.saveMeta();
         }
       }
+      this.onActivity?.();
     } catch (err) {
       await this.record({ type: 'error', message: err instanceof Error ? err.message : String(err) });
     }
@@ -279,6 +282,10 @@ export class AgentRuntime {
   private semaphore: Semaphore;
   private sessions = new Map<string, RuntimeSession>();
   private chatsDir: string;
+  /** Idle-summary timers and the turn count each chat was last summarized at. */
+  private summaryTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private lastSummaryTurns = new Map<string, number>();
+  private summaryIdleMs = Number(process.env.FORMA_SUMMARY_IDLE_MS ?? 120_000);
 
   constructor(
     private vaultRoot: string,
@@ -317,6 +324,7 @@ export class AgentRuntime {
       agent,
       this.semaphore,
     );
+    session.onActivity = () => this.armSummary(id);
     this.sessions.set(id, session);
     await session.saveMeta();
     return session;
@@ -359,6 +367,7 @@ export class AgentRuntime {
     session.providerSessionId = providerSessionId ?? null;
     session.costUsd = typeof frontmatter['costUsd'] === 'number' ? frontmatter['costUsd'] : 0;
     session.turns = typeof frontmatter['turns'] === 'number' ? frontmatter['turns'] : 0;
+    session.onActivity = () => this.armSummary(id);
     session.preloadTranscript(await readTranscript(dir));
     this.sessions.set(id, session);
     return session;
@@ -419,6 +428,66 @@ export class AgentRuntime {
     return { ok, costUsd, turns, error };
   }
 
+  /** (Re)arm the idle timer that summarizes a chat once it goes quiet. */
+  private armSummary(id: string): void {
+    if (this.summaryIdleMs <= 0) return;
+    const existing = this.summaryTimers.get(id);
+    if (existing) clearTimeout(existing);
+    const timer = setTimeout(() => {
+      this.summaryTimers.delete(id);
+      void this.summarizeSession(id).catch((e) => console.error('[summary] failed', id, e));
+    }, this.summaryIdleMs);
+    if (typeof timer.unref === 'function') timer.unref();
+    this.summaryTimers.set(id, timer);
+  }
+
+  /**
+   * Distill a chat into chats/<id>/summary.md plus durable facts into raw/.
+   * Skips when nothing new happened since the last summary (unless forced).
+   */
+  async summarizeSession(id: string, force = false): Promise<HeadlessOutcome | null> {
+    const live = this.sessions.get(id);
+    const records = live ? live.transcript() : await this.loadTranscript(id);
+    if (!records || records.length === 0) return null;
+
+    const turns = live
+      ? live.turns
+      : records.filter((r) => r.record.type === 'result').length;
+    if (!force && (this.lastSummaryTurns.get(id) ?? 0) >= turns) return null;
+
+    const text = condenseTranscript(records);
+    if (text.trim() === '') return null;
+
+    const today = nowIso().slice(0, 10);
+    const clipped = text.length > 12_000 ? text.slice(-12_000) : text;
+    const prompt = [
+      'Ниже — транскрипт диалога пользователя с агентом. Сделай краткую выжимку.',
+      '',
+      `1. Создай или перезапиши chats/${id}/summary.md с frontmatter:`,
+      '   type: summary',
+      `   of: ${id}`,
+      `   created: ${today}`,
+      '   и кратким markdown-резюме: что обсуждали, решения, итоги.',
+      `2. Если появились устойчивые факты/решения/знания — допиши их пунктами в`,
+      `   raw/${today}-chat-${id}.md (создай при отсутствии; дополняй, не затирай).`,
+      '   Если ничего стоящего нет — пропусти этот шаг.',
+      '',
+      'Будь краток, игнорируй болтовню, больше ничего не меняй.',
+      '',
+      '--- ТРАНСКРИПТ ---',
+      clipped,
+    ].join('\n');
+
+    const outcome = await this.runHeadless({
+      prompt,
+      permission: 'vault-write',
+      model: this.defaultModel(),
+      maxTurns: 12,
+    });
+    if (outcome.ok && !outcome.error) this.lastSummaryTurns.set(id, turns);
+    return outcome;
+  }
+
   /** List persisted chats (from each chats/<id>/meta.md), newest first. */
   async listSessions(): Promise<SessionSummary[]> {
     let entries: string[];
@@ -470,8 +539,32 @@ export class AgentRuntime {
   }
 
   async stop(): Promise<void> {
+    for (const timer of this.summaryTimers.values()) clearTimeout(timer);
+    this.summaryTimers.clear();
     await Promise.all([...this.sessions.values()].map((s) => s.close().catch(() => {})));
   }
+}
+
+/** Flatten a transcript to plain "User:/Agent:" text for summarization. */
+function condenseTranscript(records: PersistedRecord[]): string {
+  const lines: string[] = [];
+  let assistant = '';
+  const flush = () => {
+    if (assistant.trim()) lines.push(`Agent: ${assistant.trim()}`);
+    assistant = '';
+  };
+  for (const { record } of records) {
+    if (record.type === 'user') {
+      flush();
+      lines.push(`User: ${record.text}`);
+    } else if (record.type === 'text_delta') {
+      assistant += record.text;
+    } else if (record.type === 'result') {
+      flush();
+    }
+  }
+  flush();
+  return lines.join('\n\n');
 }
 
 async function readTranscript(dir: string): Promise<PersistedRecord[]> {
