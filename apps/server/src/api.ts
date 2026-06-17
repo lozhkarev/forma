@@ -115,6 +115,12 @@ export function createApi(
     return c.json(indexer.search(q));
   });
 
+  app.get('/api/backlinks', (c) => {
+    const path = c.req.query('path');
+    if (!path) throw new VaultError('параметр path обязателен', 400);
+    return c.json(indexer.backlinks(path));
+  });
+
   app.get('/api/events', (c) =>
     streamSSE(c, async (stream) => {
       let alive = true;

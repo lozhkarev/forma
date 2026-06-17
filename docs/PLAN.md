@@ -256,14 +256,45 @@ http: url/headers; env/headers строками KEY=VALUE), список с edit
 
 Зависимость: `croner` добавлен в `apps/server`.
 
-## Фаза 3 «Знания»
+## Фаза 3 «Знания» — в работе
 
-- Агент-`librarian` (по расписанию): дистилляция `raw/` + `chats/` → `wiki/`,
-  поддержка `wiki/index.md`, frontmatter `sources:`.
-- Автовыжимки завершённых чат-сессий → `chats/*/summary.md` + факты в `raw/`.
-- Отчёты (`weekly-report` агент) и weekly-review сценарий в чате.
-- Бэклинки и `[[wiki-links]]`: таблица links в индексе, автодополнение
-  в редакторе, панель «ссылается сюда».
+### 3.1 Ссылки и бэклинки ✅
+
+Сделано: извлечение ссылок в core (`links.ts`, `extractLinks` — `[[wiki]]` с
+алиасами и markdown `[..](..)`; внешние URL/якоря/картинки отсеиваются) и
+резолвинг (`resolveLink`/`buildNameIndex` — wiki по basename, wiki/ при
+коллизии; md по относительному/абсолютному пути; битые ссылки → null).
+Индекс: таблица `links` (source/target/kind), заполняется при индексировании,
+чистится по source. API `GET /api/backlinks?path=`. Веб: панель
+«Linked references» в редакторе (`components/Backlinks.tsx`), SSE-инвалидация
+`['backlinks']` при любой правке vault.
+
+✓ Проверено: бутстрапный `[[forma]]` даёт бэклинк; 3 ссылки из одного дока
+дедуплицируются; `[[index]]` резолвится по basename; битые/внешние
+игнорируются. typecheck + прод-сборка.
+
+### 3.2 Агент-librarian + skill distill ✅
+
+Сделано: skill `distill` (редактируемые инструкции дистилляции) и встроенный
+агент `librarian` (cron 02:00, `enabled: false`, permission vault-write,
+output `wiki/`) — оба файлами через bootstrap + живой vault. librarian
+опирается на навык distill: `raw/` и `chats/*/summary.md` → страницы `wiki/`
+с frontmatter `sources:`, поддержка `wiki/index.md`, инкрементально.
+
+✓ Проверено: ручной прогон (haiku, $0.057, 17 turns) создал `wiki/arc-vfs.md`
+из заметки в `raw/` — с `sources: [raw/...]` и `[[forma]]`-ссылкой.
+
+### 3.3 Автовыжимки чатов — TODO
+
+- По завершении значимой чат-сессии — фоновая выжимка → `chats/*/summary.md`
+  + извлечённые факты/решения в `raw/` (дальше их подберёт librarian).
+
+### 3.4 OKF-совместимость + автодополнение + отчёты — TODO
+
+- Слой знаний по OKF: `type` у wiki-страниц, формат `index.md`/`log.md`,
+  bundle-relative ссылки (см. обсуждение OKF в начале проекта).
+- `[[ ]]`-автодополнение в TipTap (источник — индекс документов).
+- Отчёты: агент `weekly-report` + представление `reports/` в UI.
 
 ## Фаза 4 «Десктоп»
 

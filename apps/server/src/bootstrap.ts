@@ -225,6 +225,27 @@ description: Review the past week — what got done, what slipped, and key decis
 Только факты из vault, без домыслов. Если данных мало — так и скажи.
 `,
 
+    '.claude/skills/distill/SKILL.md': `---
+name: distill
+description: Distill raw notes and chat summaries into linked wiki pages with source references. Use when asked to distill, update the knowledge base, or maintain the wiki ("distill raw", "обнови вики", "законспектируй заметки").
+---
+
+# Дистилляция знаний
+
+Преврати сырьё в дистиллированные wiki-страницы.
+
+1. Просмотри новое и изменённое в raw/ и выжимки чатов в chats/*/summary.md.
+2. Для устойчивых фактов, решений и концепций заведи или обнови страницу в wiki/:
+   - компактно, своими словами, без воды;
+   - перелинкуй с другими страницами через [[wiki-ссылки]];
+   - в frontmatter sources: перечисли пути исходников (raw/..., chats/...).
+3. Поддерживай wiki/index.md — карту знаний со ссылками на страницы.
+4. Помечай устаревшее прямо в тексте, но не удаляй без явной просьбы.
+
+Имена файлов — латиницей, kebab-case. Не дублируй существующие страницы —
+лучше дополни. Источник истины — markdown в vault.
+`,
+
     'agents/secretary.md': `---
 name: secretary
 trigger:
@@ -270,6 +291,25 @@ journal/<сегодня>.md под разделом "## Напоминания" 
 - задачи без срока, которые стоит запланировать.
 
 Только подсвечивай. Не меняй статусы и ничего не удаляй без явной просьбы.
+`,
+
+    'agents/librarian.md': `---
+name: librarian
+trigger:
+  type: cron
+  schedule: "0 2 * * *"
+permissions: vault-write
+budget: { maxTurns: 40 }
+output: wiki/
+enabled: false
+---
+
+Поддерживай базу знаний (используй подход навыка distill).
+
+Просмотри новое в raw/ и выжимки в chats/*/summary.md, обнови или создай
+страницы в wiki/ с frontmatter sources:, поддержи карту wiki/index.md.
+Работай инкрементально: не переписывай всё, дополняй. Если нового нет —
+ничего не меняй.
 `,
   };
 }

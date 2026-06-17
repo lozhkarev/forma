@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import { Markdown } from 'tiptap-markdown';
 import type { DocFile } from '@forma/core';
 import { api, isConflict } from '../api';
+import { Backlinks } from './Backlinks';
 import { useChat } from './chat/ChatProvider';
 import { Properties } from './Properties';
 
@@ -153,8 +154,9 @@ export function Editor({ doc, onDeleted }: Props) {
           }}
         />
       </div>
-      <div className="flex-1 overflow-auto bg-white px-6">
+      <div className="flex-1 overflow-auto bg-white px-6 pb-10">
         <EditorContent editor={editor} className="mx-auto max-w-3xl" />
+        <Backlinks path={loaded.path} />
       </div>
     </div>
   );

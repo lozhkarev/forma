@@ -72,6 +72,11 @@ export const api = {
 
   search: (q: string) => request<SearchHit[]>(`/api/search?q=${encodeURIComponent(q)}`),
 
+  backlinks: (path: string) =>
+    request<Array<{ path: string; title: string }>>(
+      `/api/backlinks?path=${encodeURIComponent(path)}`,
+    ),
+
   agent: {
     listModels: () => request<{ models: AgentModel[]; default: string }>('/api/agent/models'),
 

@@ -27,6 +27,7 @@ function useVaultEvents() {
       void queryClient.invalidateQueries({ queryKey: ['tasks'] });
       void queryClient.invalidateQueries({ queryKey: ['projects'] });
       void queryClient.invalidateQueries({ queryKey: ['doc', event.path] });
+      void queryClient.invalidateQueries({ queryKey: ['backlinks'] });
       if (event.path.startsWith('agents/')) {
         void queryClient.invalidateQueries({ queryKey: ['agents'] });
       }

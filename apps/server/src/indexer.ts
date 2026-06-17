@@ -4,11 +4,15 @@ import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import chokidar, { type FSWatcher } from 'chokidar';
 import {
+  buildNameIndex,
   detectKind,
+  extractLinks,
   parseDoc,
+  resolveLink,
   resolveTitle,
   taskFromDoc,
   TASK_STATUSES,
+  type LinkKind,
   type ProjectRow,
   type SearchHit,
   type TaskRow,
@@ -46,6 +50,12 @@ CREATE TABLE IF NOT EXISTS projects (
   due TEXT
 );
 CREATE VIRTUAL TABLE IF NOT EXISTS docs_fts USING fts5(path UNINDEXED, title, body);
+CREATE TABLE IF NOT EXISTS links (
+  source TEXT NOT NULL,
+  target TEXT NOT NULL,
+  kind TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS links_source ON links(source);
 `;
 
 export class IndexService extends EventEmitter {
@@ -61,7 +71,7 @@ export class IndexService extends EventEmitter {
   }
 
   async reindexAll(): Promise<number> {
-    for (const table of ['documents', 'tasks', 'projects', 'docs_fts']) {
+    for (const table of ['documents', 'tasks', 'projects', 'docs_fts', 'links']) {
       this.db.exec(`DELETE FROM ${table};`);
     }
     const files = await this.vault.listMarkdownFiles();
@@ -100,6 +110,11 @@ export class IndexService extends EventEmitter {
       .run(relPath, kind, title, JSON.stringify(frontmatter), mtimeMs);
     this.db.prepare('INSERT INTO docs_fts (path, title, body) VALUES (?, ?, ?)').run(relPath, title, body);
 
+    const insertLink = this.db.prepare('INSERT INTO links (source, target, kind) VALUES (?, ?, ?)');
+    for (const link of extractLinks(body)) {
+      insertLink.run(relPath, link.target, link.kind);
+    }
+
     if (kind === 'task') {
       const t = taskFromDoc(relPath, frontmatter, body);
       this.db
@@ -134,6 +149,7 @@ export class IndexService extends EventEmitter {
     for (const table of ['documents', 'tasks', 'projects', 'docs_fts']) {
       this.db.prepare(`DELETE FROM ${table} WHERE path = ?`).run(relPath);
     }
+    this.db.prepare('DELETE FROM links WHERE source = ?').run(relPath);
   }
 
   private broadcast(event: VaultEvent): void {
@@ -201,6 +217,31 @@ export class IndexService extends EventEmitter {
       }
       return { ...p, taskCounts } as ProjectRow;
     });
+  }
+
+  /** Documents whose body links to `target` (resolved wiki + markdown links). */
+  backlinks(target: string): Array<{ path: string; title: string }> {
+    const links = this.db.prepare('SELECT source, target, kind FROM links').all() as Array<{
+      source: string;
+      target: string;
+      kind: LinkKind;
+    }>;
+    const docs = this.db.prepare('SELECT path, title FROM documents').all() as Array<{
+      path: string;
+      title: string;
+    }>;
+    const paths = new Set(docs.map((d) => d.path));
+    const byName = buildNameIndex(paths);
+    const titleByPath = new Map(docs.map((d) => [d.path, d.title]));
+
+    const sources = new Set<string>();
+    for (const l of links) {
+      if (l.source === target) continue;
+      if (resolveLink(l.source, l.target, l.kind, paths, byName) === target) sources.add(l.source);
+    }
+    return [...sources]
+      .map((p) => ({ path: p, title: titleByPath.get(p) ?? p }))
+      .sort((a, b) => a.title.localeCompare(b.title));
   }
 
   search(query: string): SearchHit[] {
