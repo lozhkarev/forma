@@ -27,6 +27,37 @@ export type DocKind =
 
 export type Frontmatter = Record<string, unknown>;
 
+/** What a custom (background) agent is allowed to do. Mirrors the agent
+ *  package's PermissionProfile; duplicated here so core stays vendor-free. */
+export type AgentPermission = 'read-only' | 'vault-write' | 'full';
+
+export type AgentTriggerType = 'cron' | 'event' | 'manual';
+
+/** A user-defined agent, parsed from `agents/<name>.md`. See ARCHITECTURE §6. */
+export interface AgentDefinition {
+  /** Stable id; from frontmatter `name` or the filename. */
+  name: string;
+  /** Vault-relative path of the definition file. */
+  path: string;
+  /** Disabled agents are listed but never auto-triggered. */
+  enabled: boolean;
+  trigger: {
+    type: AgentTriggerType;
+    /** Cron expression for `cron` triggers. */
+    schedule: string | null;
+    /** Path glob for `event` triggers (e.g. `inbox/*`). */
+    glob: string | null;
+  };
+  permission: AgentPermission;
+  /** Model id override; runtime default otherwise. */
+  model: string | null;
+  budget: { maxTurns: number | null; maxCostUsd: number | null };
+  /** Hint for where the agent should write output (e.g. `reports/`). */
+  output: string | null;
+  /** The prompt — the body of the definition file. */
+  prompt: string;
+}
+
 /** Документ vault: распарсенный markdown-файл. */
 export interface DocFile {
   path: string;
@@ -75,6 +106,6 @@ export interface SearchHit {
 }
 
 export interface VaultEvent {
-  type: 'changed' | 'deleted';
+  type: 'added' | 'changed' | 'deleted';
   path: string;
 }

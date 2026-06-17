@@ -40,6 +40,14 @@ interface RuntimeConfig {
   maxCostUsd: number;
 }
 
+/** Result of a one-shot headless agent run (background agents). */
+export interface HeadlessOutcome {
+  ok: boolean;
+  costUsd: number;
+  turns: number;
+  error: string | null;
+}
+
 const nowIso = () => new Date().toISOString();
 
 /** Counting semaphore limiting how many turns run at once across sessions. */
@@ -358,6 +366,57 @@ export class AgentRuntime {
 
   get(id: string): RuntimeSession | undefined {
     return this.sessions.get(id);
+  }
+
+  defaultModel(): string {
+    return this.config.model ?? 'claude-sonnet-4-6';
+  }
+
+  /**
+   * Run one prompt to completion with no interactive session or persistence —
+   * the execution primitive for background (custom) agents. Shares the turn
+   * semaphore with chats. Any permission prompt is auto-denied (no UI to ask).
+   */
+  async runHeadless(opts: {
+    prompt: string;
+    permission: PermissionProfile;
+    model: string;
+    maxTurns?: number;
+    maxCostUsd?: number;
+    onEvent?: (event: AgentEvent) => void | Promise<void>;
+  }): Promise<HeadlessOutcome> {
+    await this.semaphore.acquire();
+    const agent = this.provider.createSession({
+      vaultRoot: this.vaultRoot,
+      permission: opts.permission,
+      model: opts.model,
+      maxTurns: opts.maxTurns ?? this.config.maxTurns,
+      maxCostUsd: opts.maxCostUsd ?? this.config.maxCostUsd,
+    });
+
+    let ok = false;
+    let costUsd = 0;
+    let turns = 0;
+    let error: string | null = null;
+    try {
+      for await (const event of agent.send({ text: opts.prompt })) {
+        if (event.type === 'permission_request') agent.resolvePermission(event.requestId, 'deny');
+        if (opts.onEvent) await opts.onEvent(event);
+        if (event.type === 'result') {
+          ok = event.ok;
+          costUsd += event.costUsd ?? 0;
+          turns += event.turns;
+        } else if (event.type === 'error') {
+          error = event.message;
+        }
+      }
+    } catch (err) {
+      error = err instanceof Error ? err.message : String(err);
+    } finally {
+      await agent.close().catch(() => {});
+      this.semaphore.release();
+    }
+    return { ok, costUsd, turns, error };
   }
 
   /** List persisted chats (from each chats/<id>/meta.md), newest first. */

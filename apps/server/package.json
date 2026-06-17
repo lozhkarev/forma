@@ -13,6 +13,7 @@
     "@forma/core": "*",
     "@hono/node-server": "^1.13.0",
     "chokidar": "^4.0.0",
+    "croner": "^10.0.1",
     "hono": "^4.6.0"
   },
   "devDependencies": {

@@ -3,8 +3,13 @@ import { cors } from 'hono/cors';
 import { streamSSE } from 'hono/streaming';
 import type { Frontmatter, VaultEvent } from '@forma/core';
 import { createAgentRoutes } from './agent-api.js';
+import { createAgentDefRoutes } from './agents-api.js';
+import type { AgentService } from './agents.js';
 import type { IndexService } from './indexer.js';
 import type { AgentRuntime } from './runtime.js';
+import type { Scheduler } from './scheduler.js';
+import { createSettingsRoutes } from './settings-api.js';
+import type { SettingsService } from './settings.js';
 import { VaultError, type VaultService } from './vault.js';
 
 interface WriteDocBody {
@@ -20,12 +25,21 @@ interface PatchTaskBody {
   patch: Record<string, unknown>;
 }
 
-export function createApi(vault: VaultService, indexer: IndexService, runtime: AgentRuntime): Hono {
+export function createApi(
+  vault: VaultService,
+  indexer: IndexService,
+  runtime: AgentRuntime,
+  agents: AgentService,
+  scheduler: Scheduler,
+  settings: SettingsService,
+): Hono {
   const app = new Hono();
 
   app.use('/api/*', cors());
 
   app.route('/api/agent', createAgentRoutes(runtime));
+  app.route('/api/agents', createAgentDefRoutes(agents, scheduler));
+  app.route('/api/settings', createSettingsRoutes(settings));
 
   app.onError((err, c) => {
     if (err instanceof VaultError) {

@@ -1,4 +1,4 @@
-import { realpathSync } from 'node:fs';
+import { readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import { Channel, Gate } from './channel.js';
@@ -73,6 +73,9 @@ class ClaudeAgentSession implements AgentSession {
 
   private start(): void {
     const { opts } = this;
+    // MCP tools side-effect, so they're only reachable in interactive (full)
+    // sessions; don't spawn servers for read-only/vault-write background runs.
+    const mcpServers = opts.permission === 'full' ? loadMcpServers(this.root) : {};
     this.query = query({
       prompt: this.inputStream() as any,
       options: {
@@ -87,6 +90,7 @@ class ClaudeAgentSession implements AgentSession {
         ...(opts.maxTurns ? { maxTurns: opts.maxTurns } : {}),
         ...(opts.maxCostUsd ? { maxBudgetUsd: opts.maxCostUsd } : {}),
         ...(opts.resumeSessionId ? { resume: opts.resumeSessionId } : {}),
+        ...(Object.keys(mcpServers).length ? { mcpServers } : {}),
       } as any,
     });
     void this.consume();
@@ -218,6 +222,17 @@ class ClaudeAgentSession implements AgentSession {
     // existing ancestor so symlinks in the target path don't fool the check.
     const abs = canonical(path.resolve(this.root, filePath));
     return abs === this.root || abs.startsWith(this.root + path.sep);
+  }
+}
+
+/** Read `.claude/mcp.json`'s server registry; empty on missing/malformed. */
+function loadMcpServers(vaultRoot: string): Record<string, unknown> {
+  try {
+    const raw = readFileSync(path.join(vaultRoot, '.claude', 'mcp.json'), 'utf8');
+    const parsed = JSON.parse(raw) as { mcpServers?: Record<string, unknown> };
+    return parsed.mcpServers ?? {};
+  } catch {
+    return {};
   }
 }
 

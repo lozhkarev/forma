@@ -71,7 +71,10 @@ export class IndexService extends EventEmitter {
     return files.length;
   }
 
-  async indexFile(relPath: string, opts: { silent?: boolean } = {}): Promise<void> {
+  async indexFile(
+    relPath: string,
+    opts: { silent?: boolean; kind?: 'added' | 'changed' } = {},
+  ): Promise<void> {
     if (!relPath.endsWith('.md')) return;
     let content: string;
     let mtimeMs: number;
@@ -119,7 +122,7 @@ export class IndexService extends EventEmitter {
         );
     }
 
-    if (!opts.silent) this.broadcast({ type: 'changed', path: relPath });
+    if (!opts.silent) this.broadcast({ type: opts.kind ?? 'changed', path: relPath });
   }
 
   removeFile(relPath: string, opts: { silent?: boolean } = {}): void {
@@ -144,12 +147,12 @@ export class IndexService extends EventEmitter {
       return rel.split(path.sep).some((seg) => seg === '.forma' || seg === '.git' || seg === 'node_modules');
     };
     this.watcher = chokidar.watch(this.vault.root, { ignored, ignoreInitial: true });
-    const onUpsert = (abs: string) => {
+    const onUpsert = (abs: string, kind: 'added' | 'changed') => {
       const rel = this.vault.rel(abs);
-      if (rel.endsWith('.md')) void this.indexFile(rel);
+      if (rel.endsWith('.md')) void this.indexFile(rel, { kind });
     };
-    this.watcher.on('add', onUpsert);
-    this.watcher.on('change', onUpsert);
+    this.watcher.on('add', (abs: string) => onUpsert(abs, 'added'));
+    this.watcher.on('change', (abs: string) => onUpsert(abs, 'changed'));
     this.watcher.on('unlink', (abs: string) => {
       const rel = this.vault.rel(abs);
       if (rel.endsWith('.md')) this.removeFile(rel);

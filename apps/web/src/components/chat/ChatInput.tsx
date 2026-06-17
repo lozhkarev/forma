@@ -1,8 +1,10 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import type { AgentModel, PermissionProfile } from '../../lib/chat';
 import { permissionLabel } from '../../lib/chat';
 
 interface Props {
+  value: string;
+  onChange: (text: string) => void;
   permission: PermissionProfile;
   permissionLocked: boolean;
   onPermissionChange: (p: PermissionProfile) => void;
@@ -19,6 +21,8 @@ const PROFILES: PermissionProfile[] = ['full', 'vault-write', 'read-only'];
 
 /** Minimal "Do anything" composer, styled after the reference. */
 export function ChatInput({
+  value,
+  onChange,
   permission,
   permissionLocked,
   onPermissionChange,
@@ -30,7 +34,6 @@ export function ChatInput({
   busy,
   onInterrupt,
 }: Props) {
-  const [text, setText] = useState('');
   const ref = useRef<HTMLTextAreaElement>(null);
 
   useLayoutEffect(() => {
@@ -38,21 +41,21 @@ export function ChatInput({
     if (!el) return;
     el.style.height = 'auto';
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
-  }, [text]);
+  }, [value]);
 
   const submit = () => {
-    const trimmed = text.trim();
+    const trimmed = value.trim();
     if (trimmed === '' || busy) return;
     onSend(trimmed);
-    setText('');
+    onChange('');
   };
 
   return (
     <div className="rounded-2xl border border-stone-200 bg-white shadow-sm focus-within:border-stone-300">
       <textarea
         ref={ref}
-        value={text}
-        onChange={(e) => setText(e.target.value)}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
@@ -102,7 +105,7 @@ export function ChatInput({
         ) : (
           <button
             onClick={submit}
-            disabled={text.trim() === ''}
+            disabled={value.trim() === ''}
             className="flex h-8 w-8 items-center justify-center rounded-full bg-stone-900 text-white transition disabled:bg-stone-200 disabled:text-stone-400"
             title="Send"
           >

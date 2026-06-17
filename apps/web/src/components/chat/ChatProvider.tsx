@@ -9,6 +9,10 @@ interface ChatContextValue {
   pendingContextDoc: string | null;
   startWithDoc: (docPath: string) => void;
   clearPendingDoc: () => void;
+  /** Text to seed the composer of a fresh chat (consumed once by the panel). */
+  pendingPrompt: string | null;
+  startWithPrompt: (prompt: string) => void;
+  clearPendingPrompt: () => void;
 }
 
 const ChatContext = createContext<ChatContextValue | null>(null);
@@ -16,6 +20,7 @@ const ChatContext = createContext<ChatContextValue | null>(null);
 export function ChatProvider({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
   const [pendingContextDoc, setPendingContextDoc] = useState<string | null>(null);
+  const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
 
   const value = useMemo<ChatContextValue>(
     () => ({
@@ -29,8 +34,14 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         setIsOpen(true);
       },
       clearPendingDoc: () => setPendingContextDoc(null),
+      pendingPrompt,
+      startWithPrompt: (prompt: string) => {
+        setPendingPrompt(prompt);
+        setIsOpen(true);
+      },
+      clearPendingPrompt: () => setPendingPrompt(null),
     }),
-    [isOpen, pendingContextDoc],
+    [isOpen, pendingContextDoc, pendingPrompt],
   );
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;

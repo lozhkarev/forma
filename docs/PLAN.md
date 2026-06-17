@@ -122,7 +122,20 @@ inbox/proxy-test.md, событие пришло по SSE, задача в ин�
 - ✓ Критерий: задача, созданная агентом из чата, сразу видна в списке задач
   (SSE-инвалидация уже работает).
 
-### 1.4 Контекст агента в vault
+### 1.4 Контекст агента в vault ✅
+
+Сделано: обогащён `.claude/CLAUDE.md` (структура vault, формат задач с примером
+frontmatter, правила: даты YYYY-MM-DD, inbox vs `projects/*/tasks`, правка
+существующих файлов вместо дублей, kebab-case имена; проекты, журнал). Три
+skill'а в `.claude/skills/<name>/SKILL.md`: `plan-day`, `plan-week`,
+`weekly-review` (frontmatter name/description для триггера, тело — инструкции).
+Канон контента — в `apps/server/src/bootstrap.ts` (vault gitignored), живой
+vault обновлён для разработки. SDK уже грузит и CLAUDE.md, и skills
+(`settingSources: ['project']`, cwd = vault).
+
+✓ Проверено: бутстрап свежего временного vault кладёт CLAUDE.md + 3 SKILL.md,
+все парсятся (экранирование template-литералов корректно); typecheck/build.
+Сквозной прогон «спланируй день» с живым агентом — при ручной проверке.
 
 - Дополнить `vault/.claude/CLAUDE.md`: формат задач/проектов, правила
   (создавать задачи в inbox или projects/*/tasks, статусы, даты).
@@ -131,7 +144,23 @@ inbox/proxy-test.md, событие пришло по SSE, задача в ин�
 - ✓ Критерий: «спланируй мой день» создаёт/обновляет `journal/YYYY-MM-DD.md`
   и проставляет `scheduled` у задач.
 
-### 1.5 Дашборд «Сегодня»
+### 1.5 Дашборд «Сегодня» ✅
+
+Сделано: маршрут `/today` сделан стартовым (индекс редиректит на него), пункт
+«Today» первым в навигации. Страница (`pages/TodayPage.tsx`): задачи на сегодня
+(scheduled = today + due ≤ today среди активных, сортировка по дате), журнал дня
+`journal/<today>.md` (read-only рендер), кнопка «✦ Plan my day». Кнопка кладёт
+готовый промпт в композер свежего чата через `startWithPrompt` (ChatProvider →
+ChatPanel сидит `draft` → управляемый ChatInput). Общий `components/TaskItem.tsx`
+вынесен из TasksPage и переиспользован. Read-only markdown —
+`components/MarkdownView.tsx` (TipTap `editable:false`, те же расширения, что в
+редакторе).
+
+✓ Проверено: typecheck, прод-сборка (все модули), vite-трансформы новых модулей,
+полный dev-стек через vite-proxy (/api проксируется, задачи отдаются). PASS.
+
+Оставлено: ответы агента в чате всё ещё pre-wrap — теперь можно переиспользовать
+MarkdownView (техдолг №2).
 
 - Маршрут `/today` (сделать стартовым вместо `/tasks`): задачи на сегодня
   (scheduled=today + просроченные due), журнал дня (рендер markdown),
@@ -142,18 +171,90 @@ inbox/proxy-test.md, событие пришло по SSE, задача в ин�
 
 ---
 
-## Фаза 2 «Автономия»
+## Фаза 2 «Автономия» ✅
 
-- Scheduler (croner) в сервере; определения агентов — `vault/agents/*.md`
-  (frontmatter: trigger cron|event|manual, permissions, budget, output).
-- Журнал запусков `.forma/runs/<agent>/<ts>.jsonl` + UI: список агентов,
-  запуски, стоимость, кнопка «запустить сейчас», редактор определения.
-- Встроенные агенты файлами: `secretary` (утренняя сводка),
-  `janitor` (просроченные задачи, напоминания).
-- Событийные триггеры: glob по vault (новый файл в `inbox/`), webhook-эндпоинт.
-- UI настроек: управление `vault/.claude/mcp.json` (добавить MCP-сервер,
-  проверить подключение, список инструментов) и skills. Секреты — только
-  ссылки на env-переменные, не в vault.
+### 2.1 Определения агентов + headless-движок + REST ✅
+
+Сделано: тип `AgentDefinition` + парсер `agentFromDoc` в core
+(`agentdef.ts`, frontmatter trigger/permissions/budget/output/enabled, тело =
+промпт; терпим к пропускам). Примитив `AgentRuntime.runHeadless` (runtime.ts):
+один промпт до результата, переиспользует provider + семафор чатов, любой
+permission_request авто-деним (нет UI). `AgentService` (agents.ts): чтение
+определений из `agents/*.md`, запуск с журналом в
+`.forma/runs/<name>/<runId>/` (`meta.json` + `events.jsonl`), листинг запусков,
+флаг `isRunning`, headless-кламп `full → vault-write`. REST (agents-api.ts,
+`/api/agents`): list, get, `:name/runs`, `:name/runs/:runId`, `POST :name/run`.
+
+✓ Проверено: агент реально создал `raw/agent-smoke.md`; meta success,
+$0.039, 2 turns; журнал на месте.
+
+### 2.2 Scheduler (croner) ✅
+
+Сделано: `Scheduler` (scheduler.ts) на croner — собирает cron-агентов,
+перестраивается по изменениям в `agents/` (debounce, через SSE-события
+индексатора), guard от наложения (`isRunning`), `list()` с nextRun.
+
+✓ Проверено: cron `*/2 * * * * *` создал запуск с `trigger: cron` за ~1с;
+лог «scheduler: 1 cron agent(s)».
+
+### 2.3 Событийные триггеры + webhook ✅
+
+Сделано: `VaultEvent` различает `added`/`changed` (индексатор берёт kind из
+chokidar add/change). `EventTrigger` (event-trigger.ts): glob→RegExp,
+запускает event-агентов на появление файла (только `added`, чтобы агент не
+зациклился на своих правках). Контекст запуска (`startRun(..., context)`)
+прокидывает в промпт путь-триггер или payload вебхука. Вебхук
+`POST /api/agents/:name/hook`.
+
+✓ Проверено: новый файл в `inbox/` → запуск `trigger: event` за 1с;
+webhook → ещё один; оба success.
+
+### 2.4 Встроенные агенты ✅
+
+Сделано: `secretary` (утренняя сводка, cron 9:00) и `janitor` (просроченное/
+зависшее, cron 18:00) — файлами через bootstrap. По умолчанию
+**`enabled: false`** (нет UI-тумблера и ежедневная стоимость — включать
+осознанно; либо запускать вручную).
+
+✓ Проверено: бутстрап ставит обоих; ручной прогон `janitor` (haiku, $0.036)
+нашёл просроченную задачу и записал «## Напоминания» в журнал дня.
+
+### 2.5 Web UI агентов ✅
+
+Сделано: страница «Agents» (`pages/AgentsPage.tsx`, маршрут `/agents`, пункт
+навигации): карточки агентов с тумблером enabled, бейджем running, триггером/
+permission/next-run, кнопками «Run now» и «Edit» (→ редактор `agents/<name>.md`
+в Docs), «+ New agent» (создаёт скелет и открывает в Docs). Раскрывающаяся
+история запусков (poll 3s): статус/turns/стоимость/ошибка, по клику — транскрипт
+запуска через `foldRecords`/`describeTool`. Бэкенд: `GET /api/agents` обогащён
+`running` + `nextRun` (из `Scheduler.list()`), `PATCH /api/agents/:name`
+(`enabled`) → `AgentService.setEnabled`. Список обновляется поллингом (running/
+nextRun) и SSE-инвалидацией `['agents']` при правке файлов определений.
+
+✓ Проверено: через vite-proxy — список с enabled/running/nextRun; PATCH enable
+→ у агента появился nextRun (9:00 локально); прогон janitor (haiku, $0.046)
+success; транскрипт запуска — 44 события. typecheck + прод-сборка.
+
+### 2.6 Настройки: MCP + skills ✅
+
+Сделано: `SettingsService` (settings.ts) — CRUD `.claude/mcp.json`
+(атомарная запись temp+rename) и read-only список skills из
+`.claude/skills/*/SKILL.md`. REST `/api/settings`: `GET/PUT/DELETE mcp[/:name]`,
+`GET skills`. Страница «Settings» (`pages/SettingsPage.tsx`, маршрут
+`/settings`, пункт навигации ⚙): форма MCP-сервера (stdio: command/args/env;
+http: url/headers; env/headers строками KEY=VALUE), список с edit/delete,
+секция skills с переходом в редактор SKILL.md. Рантайм: `claude.ts` грузит
+`.claude/mcp.json` в SDK-сессии **только для `full`** (фоновым/read-only MCP
+запрещён — серверы не поднимаем), guard на отсутствие/битый файл.
+
+Намеренно НЕ сделано (вынесено в техдолг): живая «Test connection / список
+инструментов» MCP-сервера — требует поднимать сервер и делать handshake.
+
+✓ Проверено: skills отдаёт 3 bootstrap-скилла; MCP CRUD (PUT→диск→DELETE);
+регрессия чата — full-сессия с чтением mcp.json стартует и завершает ход
+($0.008), ошибок нет. typecheck + прод-сборка.
+
+Зависимость: `croner` добавлен в `apps/server`.
 
 ## Фаза 3 «Знания»
 
@@ -178,8 +279,9 @@ inbox/proxy-test.md, событие пришло по SSE, задача в ин�
    (traversal, конфликты), IndexService (переиндексация, запросы);
    agent — Channel/Gate, classify() профилей разрешений (без сети);
    web — foldRecords/describeTool. Сейчас всё проверяется ad-hoc скриптами.
-2. **Рендер markdown в ответах агента** (чат): сейчас pre-wrap текст. Нужен
-   безопасный рендер (marked + sanitize или mini-renderer), code-блоки.
+2. **Рендер markdown в ответах агента** (чат): сейчас pre-wrap текст. Уже есть
+   переиспользуемый `components/MarkdownView.tsx` (read-only TipTap) — применить
+   его в чате (учесть стриминг: рендерить по мере накопления текста).
 3. **Смена профиля разрешений в активной сессии** (SDK setPermissionMode) —
    сейчас профиль фиксируется при создании чата.
 2. **Git-интеграция vault** (simple-git): `git init` при bootstrap,
@@ -190,3 +292,12 @@ inbox/proxy-test.md, событие пришло по SSE, задача в ин�
    Vite 7 (закрывает dev-only advisory esbuild).
 6. Виртуализация длинных списков задач; пагинация поиска.
 7. Конфиг приложения `~/.forma/config.json` (путь к vault, порт) вместо env.
+8. **MCP «Test connection»** (фаза 2.6, отложено): поднять MCP-сервер из
+   `mcp.json` и вернуть список инструментов/ошибку в UI настроек.
+9. **MCP для фоновых агентов**: сейчас MCP-инструменты доступны только в
+   интерактивном чате (`full`); read-only MCP для headless-агентов потребует
+   различать read/write инструменты по allow-list.
+10. **Зависшие запуски агентов**: если сервер упал во время прогона, run
+    остаётся `status: running` в `.forma/runs`. Помечать такие при старте.
+11. Индексация `.claude/*.md` рассинхронизирована: вотчер их индексирует,
+    а `reindexAll` (через `listMarkdownFiles`) пропускает dot-папки.

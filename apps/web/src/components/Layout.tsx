@@ -8,9 +8,12 @@ import { ChatPanel } from './chat/ChatPanel';
 import { ChatProvider, useChat } from './chat/ChatProvider';
 
 const NAV = [
+  { to: '/today', label: 'Today', icon: '◎' },
   { to: '/tasks', label: 'Tasks', icon: '☑' },
   { to: '/projects', label: 'Projects', icon: '▤' },
+  { to: '/agents', label: 'Agents', icon: '◆' },
   { to: '/docs', label: 'Docs', icon: '✎' },
+  { to: '/settings', label: 'Settings', icon: '⚙' },
 ] as const;
 
 /** Live-обновления: изменения vault (агент, внешний редактор) инвалидируют кеш. */
@@ -24,6 +27,9 @@ function useVaultEvents() {
       void queryClient.invalidateQueries({ queryKey: ['tasks'] });
       void queryClient.invalidateQueries({ queryKey: ['projects'] });
       void queryClient.invalidateQueries({ queryKey: ['doc', event.path] });
+      if (event.path.startsWith('agents/')) {
+        void queryClient.invalidateQueries({ queryKey: ['agents'] });
+      }
     });
     return () => source.close();
   }, [queryClient]);

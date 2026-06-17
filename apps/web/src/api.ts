@@ -6,7 +6,9 @@ import type {
   TaskRow,
   TreeNode,
 } from '@forma/core';
+import type { AgentRun, AgentSummary, RunDetail } from './lib/agents';
 import type { AgentModel, PermissionProfile, PersistedRecord, SessionSummary } from './lib/chat';
+import type { McpConfig, McpServerConfig, SkillInfo } from './lib/settings';
 
 class ApiError extends Error {
   constructor(
@@ -112,5 +114,42 @@ export const api = {
       request<{ ok: boolean }>(`/api/agent/sessions/${encodeURIComponent(id)}/interrupt`, {
         method: 'POST',
       }),
+  },
+
+  // Custom (background) agents: definitions and runs.
+  agentDefs: {
+    list: () => request<AgentSummary[]>('/api/agents'),
+
+    run: (name: string) =>
+      request<AgentRun>(`/api/agents/${encodeURIComponent(name)}/run`, { method: 'POST' }),
+
+    runs: (name: string) => request<AgentRun[]>(`/api/agents/${encodeURIComponent(name)}/runs`),
+
+    getRun: (name: string, runId: string) =>
+      request<RunDetail>(
+        `/api/agents/${encodeURIComponent(name)}/runs/${encodeURIComponent(runId)}`,
+      ),
+
+    setEnabled: (name: string, enabled: boolean) =>
+      request<AgentSummary>(`/api/agents/${encodeURIComponent(name)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ enabled }),
+      }),
+  },
+
+  // Workspace settings: MCP servers and skills.
+  settings: {
+    mcp: () => request<McpConfig>('/api/settings/mcp'),
+
+    putServer: (name: string, config: McpServerConfig) =>
+      request<McpConfig>(`/api/settings/mcp/${encodeURIComponent(name)}`, {
+        method: 'PUT',
+        body: JSON.stringify(config),
+      }),
+
+    deleteServer: (name: string) =>
+      request<McpConfig>(`/api/settings/mcp/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+
+    skills: () => request<SkillInfo[]>('/api/settings/skills'),
   },
 };

@@ -17,8 +17,10 @@ function lastIndexOf(records: PersistedRecord[], match: (r: PersistedRecord) => 
 }
 
 export function ChatPanel() {
-  const { isOpen, close, pendingContextDoc, clearPendingDoc } = useChat();
+  const { isOpen, close, pendingContextDoc, clearPendingDoc, pendingPrompt, clearPendingPrompt } =
+    useChat();
 
+  const [draft, setDraft] = useState('');
   const [activeId, setActiveId] = useState<string | null>(null);
   const [permission, setPermission] = useState<PermissionProfile>('full');
   const [models, setModels] = useState<AgentModel[]>([]);
@@ -46,6 +48,17 @@ export function ChatPanel() {
     setContextDoc(pendingContextDoc);
     clearPendingDoc();
   }, [pendingContextDoc, clearPendingDoc]);
+
+  // A ready-made prompt (e.g. "Plan my day") seeds the composer of a fresh chat.
+  useEffect(() => {
+    if (!pendingPrompt) return;
+    setActiveId(null);
+    setRecords([]);
+    setResolved(new Set());
+    setContextDoc(null);
+    setDraft(pendingPrompt);
+    clearPendingPrompt();
+  }, [pendingPrompt, clearPendingPrompt]);
 
   // Live stream for the active session (replays full transcript on connect).
   useEffect(() => {
@@ -184,6 +197,8 @@ export function ChatPanel() {
           </div>
         )}
         <ChatInput
+          value={draft}
+          onChange={setDraft}
           permission={permission}
           permissionLocked={Boolean(activeId)}
           onPermissionChange={setPermission}

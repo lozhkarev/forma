@@ -9,9 +9,12 @@ import {
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Layout } from './components/Layout';
+import { AgentsPage } from './pages/AgentsPage';
 import { DocsPage } from './pages/DocsPage';
 import { ProjectsPage } from './pages/ProjectsPage';
+import { SettingsPage } from './pages/SettingsPage';
 import { TasksPage } from './pages/TasksPage';
+import { TodayPage } from './pages/TodayPage';
 import './styles.css';
 
 const queryClient = new QueryClient({
@@ -24,8 +27,14 @@ const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
   beforeLoad: () => {
-    throw redirect({ to: '/tasks' });
+    throw redirect({ to: '/today' });
   },
+});
+
+export const todayRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/today',
+  component: TodayPage,
 });
 
 export const tasksRoute = createRoute({
@@ -40,6 +49,12 @@ export const projectsRoute = createRoute({
   component: ProjectsPage,
 });
 
+export const agentsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/agents',
+  component: AgentsPage,
+});
+
 export const docsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/docs',
@@ -49,7 +64,21 @@ export const docsRoute = createRoute({
   }),
 });
 
-const routeTree = rootRoute.addChildren([indexRoute, tasksRoute, projectsRoute, docsRoute]);
+export const settingsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/settings',
+  component: SettingsPage,
+});
+
+const routeTree = rootRoute.addChildren([
+  indexRoute,
+  todayRoute,
+  tasksRoute,
+  projectsRoute,
+  agentsRoute,
+  docsRoute,
+  settingsRoute,
+]);
 
 const router = createRouter({ routeTree });
 
