@@ -43,20 +43,20 @@ export function Properties({ frontmatter, onChange }: Props) {
 
   if (yamlMode) {
     return (
-      <div className="rounded-lg border border-stone-200 bg-white p-3">
+      <div className="rounded-lg border border-line bg-surface p-3">
         <textarea
           value={yamlDraft}
           onChange={(e) => setYamlDraft(e.target.value)}
           rows={Math.max(4, yamlDraft.split('\n').length)}
           spellCheck={false}
-          className="w-full resize-y rounded border border-stone-200 p-2 font-mono text-xs focus:border-stone-400 focus:outline-none"
+          className="w-full resize-y rounded border border-line p-2 font-mono text-xs focus:border-accent-border focus:outline-none"
         />
         {yamlError && <div className="mt-1 text-xs text-rose-600">{yamlError}</div>}
         <div className="mt-2 flex gap-2">
-          <button onClick={applyYaml} className="rounded bg-stone-900 px-3 py-1 text-xs text-white">
+          <button onClick={applyYaml} className="rounded bg-accent px-3 py-1 text-xs text-white">
             Apply
           </button>
-          <button onClick={() => setYamlMode(false)} className="rounded px-3 py-1 text-xs text-stone-500">
+          <button onClick={() => setYamlMode(false)} className="rounded px-3 py-1 text-xs text-muted">
             Cancel
           </button>
         </div>
@@ -70,7 +70,7 @@ export function Properties({ frontmatter, onChange }: Props) {
         <select
           value={frontmatter.status as string}
           onChange={(e) => onChange({ ...frontmatter, status: e.target.value as TaskStatus })}
-          className="rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs"
+          className="rounded-lg border border-line bg-surface px-2 py-1 text-xs"
         >
           {TASK_STATUSES.map((s) => (
             <option key={s} value={s}>
@@ -84,13 +84,13 @@ export function Properties({ frontmatter, onChange }: Props) {
         .map(([key, value]) => (
           <span
             key={key}
-            className="rounded-lg bg-stone-100 px-2 py-1 text-xs text-stone-600"
+            className="rounded-lg bg-chip px-2 py-1 text-xs text-muted"
             title={`${key}: ${formatValue(value)}`}
           >
-            <span className="text-stone-400">{key}:</span> {formatValue(value) || '—'}
+            <span className="text-faintest">{key}:</span> {formatValue(value) || '—'}
           </span>
         ))}
-      <button onClick={openYaml} className="rounded-lg px-2 py-1 text-xs text-stone-400 hover:bg-stone-100">
+      <button onClick={openYaml} className="rounded-lg px-2 py-1 text-xs text-faintest hover:bg-active">
         {entries.length > 0 ? 'edit YAML' : '+ properties'}
       </button>
     </div>

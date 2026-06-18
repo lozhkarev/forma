@@ -38,7 +38,7 @@ function QuickAdd() {
       onChange={(e) => setTitle(e.target.value)}
       onKeyDown={(e) => e.key === 'Enter' && void add()}
       placeholder="+ Quick task to inbox (Enter)"
-      className="w-full rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm shadow-sm focus:border-stone-400 focus:outline-none"
+      className="w-full rounded-xl border border-line bg-surface px-4 py-2.5 text-sm shadow-[var(--shadow-soft)] placeholder:text-faintest focus:border-accent-border focus:outline-none"
     />
   );
 }
@@ -54,16 +54,15 @@ export function TasksPage() {
   });
   const projects = useQuery({ queryKey: ['projects'], queryFn: api.projects });
 
-  // группировка по статусу в порядке workflow
   const groups = TASK_STATUSES.map((status) => ({
     status,
     items: (tasks.data ?? []).filter((t) => t.status === status),
   })).filter((g) => g.items.length > 0);
 
   return (
-    <div className="mx-auto max-w-4xl px-8 py-6">
+    <div className="mx-auto max-w-4xl px-8 py-7">
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">Tasks</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-ink">Tasks</h1>
         <div className="flex items-center gap-2">
           {FILTERS.map((f) => (
             <button
@@ -71,7 +70,9 @@ export function TasksPage() {
               onClick={() => setStatusFilter(f.key)}
               className={clsx(
                 'rounded-lg px-3 py-1 text-sm',
-                statusFilter === f.key ? 'bg-stone-900 text-white' : 'text-stone-500 hover:bg-stone-100',
+                statusFilter === f.key
+                  ? 'bg-ink-strong font-medium text-white'
+                  : 'text-muted hover:bg-active',
               )}
             >
               {f.label}
@@ -80,7 +81,7 @@ export function TasksPage() {
           <select
             value={projectFilter}
             onChange={(e) => setProjectFilter(e.target.value)}
-            className="rounded-lg border border-stone-200 bg-white px-2 py-1 text-sm"
+            className="rounded-lg border border-line bg-surface px-2 py-1 text-sm text-muted"
           >
             <option value="">All projects</option>
             {projects.data?.map((p) => (
@@ -97,17 +98,17 @@ export function TasksPage() {
       </div>
 
       {tasks.data?.length === 0 && (
-        <div className="py-16 text-center text-sm text-stone-400">No tasks</div>
+        <div className="py-16 text-center text-sm text-faintest">No tasks</div>
       )}
 
       <div className="flex flex-col gap-5">
         {groups.map((group) => (
           <section key={group.status}>
-            <h2 className="mb-1.5 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-stone-400">
+            <h2 className="mb-1.5 flex items-center gap-2 text-[13px] font-semibold uppercase tracking-[.05em] text-faint">
               {STATUS_LABELS[group.status]}
-              <span className="text-stone-300">{group.items.length}</span>
+              <span className="text-ghost">{group.items.length}</span>
             </h2>
-            <div className="overflow-hidden rounded-xl border border-stone-200 shadow-sm">
+            <div className="overflow-hidden rounded-xl border border-line shadow-[var(--shadow-soft)]">
               {group.items.map((task) => (
                 <TaskItem key={task.path} task={task} />
               ))}

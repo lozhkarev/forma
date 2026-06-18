@@ -29,6 +29,8 @@ class ClaudeAgentSession implements AgentSession {
   private query: ReturnType<typeof query> | null = null;
   private pendingPermissions = new Map<string, (d: 'allow' | 'deny') => void>();
   private permCounter = 0;
+  /** Tools the user approved this session — auto-allowed afterwards (no re-prompt). */
+  private allowedTools = new Set<string>();
   /**
    * Canonical vault path. The SDK reports tool inputs with symlinks resolved
    * (e.g. macOS /var → /private/var), so the containment guard must compare
@@ -189,6 +191,7 @@ class ClaudeAgentSession implements AgentSession {
       this.pendingPermissions.set(requestId, resolve);
       this.turn?.push({ type: 'permission_request', requestId, tool: toolName, input });
     });
+    if (decision === 'allow') this.allowedTools.add(toolName);
     return decision === 'allow'
       ? { behavior: 'allow', updatedInput: input }
       : { behavior: 'deny', message: 'declined by user' };
@@ -202,6 +205,8 @@ class ClaudeAgentSession implements AgentSession {
     const profile: PermissionProfile = this.opts.permission;
 
     if (READ_TOOLS.has(toolName)) return 'allow';
+    // Remembered for this session after the user allowed it once.
+    if (this.allowedTools.has(toolName)) return 'allow';
 
     if (WRITE_FILE_TOOLS.has(toolName)) {
       if (profile === 'read-only') return { deny: 'read-only session' };

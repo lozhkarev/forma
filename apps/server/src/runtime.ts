@@ -132,6 +132,8 @@ export class RuntimeSession {
   lastActive: string;
   /** Called after each completed turn (used to (re)arm the idle summary). */
   onActivity: (() => void) | null = null;
+  /** Selected fragment to hand the agent as context on the first message. */
+  contextSelection: string | null = null;
 
   private bus = new EventBus();
   private queue: string[] = [];
@@ -174,10 +176,11 @@ export class RuntimeSession {
     let message = text;
     if (this.title === null) {
       this.title = text.replace(/\s+/g, ' ').trim().slice(0, 80) || 'Untitled chat';
-      // On the first message, point the agent at the document under discussion.
-      if (this.contextDocPath) {
-        message = `(Context: we are discussing the vault file \`${this.contextDocPath}\`.)\n\n${text}`;
-      }
+      // On the first message, hand the agent the document and/or selection context.
+      const ctx: string[] = [];
+      if (this.contextDocPath) ctx.push(`We are discussing the vault file \`${this.contextDocPath}\`.`);
+      if (this.contextSelection) ctx.push(`Relevant selection:\n${this.contextSelection}`);
+      if (ctx.length > 0) message = `(Context: ${ctx.join('\n\n')})\n\n${text}`;
     }
     await this.record({ type: 'user', text });
     this.queue.push(message);
@@ -298,6 +301,7 @@ export class AgentRuntime {
   async createSession(opts: {
     permission?: PermissionProfile;
     contextDocPath?: string | null;
+    contextSelection?: string;
     model?: string;
   }): Promise<RuntimeSession> {
     const permission = opts.permission ?? 'full';
@@ -325,6 +329,7 @@ export class AgentRuntime {
       this.semaphore,
     );
     session.onActivity = () => this.armSummary(id);
+    session.contextSelection = opts.contextSelection ?? null;
     this.sessions.set(id, session);
     await session.saveMeta();
     return session;

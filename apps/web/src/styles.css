@@ -1,8 +1,55 @@
 @import 'tailwindcss';
 @plugin "@tailwindcss/typography";
 
+/* Design tokens — Forma / Notion-style workspace (Claude Design handoff).
+   Warm stone canvas, single blue accent (#2c6fdb), system type. */
+@theme {
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica,
+    Arial, sans-serif;
+
+  /* surfaces */
+  --color-canvas: #e6e4de;
+  --color-sidebar: #f7f6f4;
+  --color-surface: #ffffff;
+  --color-surface-2: #fcfbfa;
+  --color-panel: #fbfaf9;
+
+  /* accent */
+  --color-accent: #2c6fdb;
+  --color-accent-strong: #245fc0;
+  --color-accent-soft: #e7f0fc;
+  --color-accent-border: #cfe0f7;
+  --color-accent-wash: #f3f7fd;
+  --color-accent-wash-border: #dbe7fa;
+
+  /* ink / text */
+  --color-ink: #2a2823;
+  --color-ink-strong: #322f2a;
+  --color-body: #403d37;
+  --color-muted: #5f5c55;
+  --color-faint: #8d8a82;
+  --color-faintest: #9b988f;
+  --color-ghost: #b3b0a8;
+  --color-done: #9c998f;
+
+  /* lines / fills */
+  --color-line: #ebe9e4;
+  --color-line-strong: #e3e1dc;
+  --color-line-soft: #f0eee9;
+  --color-active: #eceae5;
+  --color-chip: #f3f1ec;
+  --color-check: #d6d3cb;
+
+  /* shadows */
+  --shadow-soft: 0 2px 8px rgba(40, 38, 33, 0.05);
+  --shadow-pop: 0 16px 44px -10px rgba(40, 38, 33, 0.32);
+  --shadow-composer: 0 8px 24px -8px rgba(40, 38, 33, 0.16), 0 2px 6px rgba(40, 38, 33, 0.06);
+  --shadow-accent: 0 3px 8px rgba(44, 111, 219, 0.4);
+}
+
 body {
-  @apply bg-stone-50 text-stone-900 antialiased;
+  @apply bg-surface text-ink antialiased;
+  font-family: var(--font-sans);
 }
 
 /* Редактор */
@@ -11,6 +58,36 @@ body {
 }
 .ProseMirror:focus {
   outline: none;
+}
+/* Notion-подобные плотные блоки: prose даёт слишком большие отступы. */
+.ProseMirror p {
+  margin-top: 0.15rem;
+  margin-bottom: 0.15rem;
+  line-height: 1.6;
+}
+.ProseMirror h1 {
+  margin-top: 1.4rem;
+  margin-bottom: 0.4rem;
+}
+.ProseMirror h2 {
+  margin-top: 1.1rem;
+  margin-bottom: 0.3rem;
+}
+.ProseMirror h3 {
+  margin-top: 0.9rem;
+  margin-bottom: 0.25rem;
+}
+.ProseMirror ul,
+.ProseMirror ol {
+  margin-top: 0.3rem;
+  margin-bottom: 0.3rem;
+}
+.ProseMirror li {
+  margin-top: 0.05rem;
+  margin-bottom: 0.05rem;
+}
+.ProseMirror li > p {
+  margin: 0;
 }
 .prose ul[data-type='taskList'] {
   list-style: none;
@@ -26,4 +103,11 @@ body {
 
 mark {
   @apply rounded bg-amber-200 px-0.5;
+}
+
+/* Persistent highlight of the fragment sent to the agent as context. */
+.ctx-highlight {
+  background: var(--color-accent-soft);
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px var(--color-accent-border);
 }

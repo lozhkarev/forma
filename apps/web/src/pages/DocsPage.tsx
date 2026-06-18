@@ -34,7 +34,7 @@ function NewDocForm({ onCreated }: { onCreated: (path: string) => void }) {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="mx-2 mb-1 rounded-lg border border-dashed border-stone-300 px-3 py-1.5 text-left text-sm text-stone-500 hover:border-stone-400 hover:text-stone-700"
+        className="mx-2 mb-1 rounded-lg border border-dashed border-line-strong px-3 py-1.5 text-left text-sm text-muted hover:border-line-strong hover:text-body"
       >
         + New document
       </button>
@@ -52,10 +52,10 @@ function NewDocForm({ onCreated }: { onCreated: (path: string) => void }) {
           if (e.key === 'Escape') setOpen(false);
         }}
         placeholder="wiki/new-page.md"
-        className="rounded-lg border border-stone-300 px-2 py-1.5 font-mono text-xs focus:border-stone-500 focus:outline-none"
+        className="rounded-lg border border-line-strong px-2 py-1.5 font-mono text-xs focus:border-accent-border focus:outline-none"
       />
       {error && <div className="text-xs text-rose-600">{error}</div>}
-      <div className="text-[10px] text-stone-400">Enter to create, Esc to cancel</div>
+      <div className="text-[10px] text-faintest">Enter to create, Esc to cancel</div>
     </div>
   );
 }
@@ -74,13 +74,13 @@ export function DocsPage() {
 
   return (
     <div className="flex h-full">
-      <div className="flex w-64 shrink-0 flex-col overflow-auto border-r border-stone-200 bg-stone-50/50 py-2">
+      <div className="flex w-64 shrink-0 flex-col overflow-auto border-r border-line bg-surface-2/50 py-2">
         <NewDocForm onCreated={select} />
         {tree.data && <FileTree node={tree.data} selected={path} onSelect={select} />}
       </div>
       <div className="min-w-0 flex-1">
         {!path && (
-          <div className="flex h-full items-center justify-center text-sm text-stone-400">
+          <div className="flex h-full items-center justify-center text-sm text-faintest">
             Select a document on the left or create a new one
           </div>
         )}

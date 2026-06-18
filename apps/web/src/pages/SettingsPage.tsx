@@ -79,7 +79,7 @@ function serverSummary(cfg: McpServerConfig): string {
 }
 
 const inputClass =
-  'w-full rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-sm focus:border-stone-400 focus:outline-none';
+  'w-full rounded-lg border border-line bg-surface px-3 py-1.5 text-sm focus:border-accent-border focus:outline-none';
 
 function ServerForm({
   initial,
@@ -122,7 +122,7 @@ function ServerForm({
   };
 
   return (
-    <div className="rounded-xl border border-stone-300 bg-stone-50 p-4">
+    <div className="rounded-xl border border-line-strong bg-surface-2 p-4">
       <div className="grid gap-3">
         <div className="flex gap-3">
           <input
@@ -130,7 +130,7 @@ function ServerForm({
             onChange={(e) => set({ name: e.target.value })}
             disabled={!isNew}
             placeholder="server-name"
-            className={`${inputClass} flex-1 disabled:bg-stone-100 disabled:text-stone-500`}
+            className={`${inputClass} flex-1 disabled:bg-chip disabled:text-muted`}
           />
           <select
             value={form.transport}
@@ -188,13 +188,13 @@ function ServerForm({
           <button
             onClick={submit}
             disabled={save.isPending}
-            className="rounded-lg bg-stone-900 px-3 py-1.5 text-sm text-white hover:bg-stone-700 disabled:bg-stone-300"
+            className="rounded-lg bg-accent px-3 py-1.5 text-sm text-white hover:bg-accent-strong disabled:bg-line-strong"
           >
             {save.isPending ? 'Saving…' : 'Save'}
           </button>
           <button
             onClick={onClose}
-            className="rounded-lg px-3 py-1.5 text-sm text-stone-500 hover:bg-stone-100"
+            className="rounded-lg px-3 py-1.5 text-sm text-muted hover:bg-active"
           >
             Cancel
           </button>
@@ -221,18 +221,18 @@ export function SettingsPage() {
   return (
     <div className="mx-auto max-w-3xl px-8 py-6">
       <h1 className="mb-1 text-2xl font-semibold tracking-tight">Settings</h1>
-      <p className="mb-6 text-sm text-stone-400">
+      <p className="mb-6 text-sm text-faintest">
         Connect tools via MCP servers and review installed skills. Keep secrets in environment
         variables and reference them as <span className="font-mono">{'${VAR}'}</span>.
       </p>
 
       <section className="mb-10">
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-500">MCP servers</h2>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">MCP servers</h2>
           {editing === null && (
             <button
               onClick={() => setEditing('')}
-              className="rounded-lg bg-stone-900 px-3 py-1 text-xs text-white hover:bg-stone-700"
+              className="rounded-lg bg-accent px-3 py-1 text-xs text-white hover:bg-accent-strong"
             >
               + Add server
             </button>
@@ -252,7 +252,7 @@ export function SettingsPage() {
         )}
 
         {servers.length === 0 && editing !== '' && (
-          <div className="rounded-xl border border-dashed border-stone-200 px-4 py-8 text-center text-sm text-stone-400">
+          <div className="rounded-xl border border-dashed border-line px-4 py-8 text-center text-sm text-faintest">
             No MCP servers configured.
           </div>
         )}
@@ -264,24 +264,24 @@ export function SettingsPage() {
             ) : (
               <div
                 key={name}
-                className="flex items-center gap-3 rounded-xl border border-stone-200 bg-white px-4 py-3 shadow-sm"
+                className="flex items-center gap-3 rounded-xl border border-line bg-surface px-4 py-3 shadow-sm"
               >
                 <div className="min-w-0 flex-1">
                   <div className="font-medium">{name}</div>
-                  <div className="truncate font-mono text-xs text-stone-500">{serverSummary(cfg)}</div>
+                  <div className="truncate font-mono text-xs text-muted">{serverSummary(cfg)}</div>
                 </div>
-                <span className="rounded bg-stone-100 px-1.5 py-0.5 text-[10px] text-stone-500">
+                <span className="rounded bg-chip px-1.5 py-0.5 text-[10px] text-muted">
                   {cfg.url ? cfg.type ?? 'http' : 'stdio'}
                 </span>
                 <button
                   onClick={() => setEditing(name)}
-                  className="rounded-lg px-2.5 py-1 text-xs text-stone-500 hover:bg-stone-100"
+                  className="rounded-lg px-2.5 py-1 text-xs text-muted hover:bg-active"
                 >
                   Edit
                 </button>
                 <button
                   onClick={() => window.confirm(`Remove MCP server "${name}"?`) && remove.mutate(name)}
-                  className="rounded-lg px-2.5 py-1 text-xs text-stone-400 hover:bg-rose-50 hover:text-rose-600"
+                  className="rounded-lg px-2.5 py-1 text-xs text-faintest hover:bg-rose-50 hover:text-rose-600"
                 >
                   Delete
                 </button>
@@ -292,9 +292,9 @@ export function SettingsPage() {
       </section>
 
       <section>
-        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-stone-500">Skills</h2>
+        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">Skills</h2>
         {skills.data?.length === 0 && (
-          <div className="rounded-xl border border-dashed border-stone-200 px-4 py-8 text-center text-sm text-stone-400">
+          <div className="rounded-xl border border-dashed border-line px-4 py-8 text-center text-sm text-faintest">
             No skills in <span className="font-mono">.claude/skills</span>.
           </div>
         )}
@@ -302,16 +302,16 @@ export function SettingsPage() {
           {skills.data?.map((s) => (
             <div
               key={s.path}
-              className="flex items-center gap-3 rounded-xl border border-stone-200 bg-white px-4 py-3 shadow-sm"
+              className="flex items-center gap-3 rounded-xl border border-line bg-surface px-4 py-3 shadow-sm"
             >
               <div className="min-w-0 flex-1">
                 <div className="font-medium">{s.name}</div>
-                {s.description && <div className="truncate text-xs text-stone-500">{s.description}</div>}
+                {s.description && <div className="truncate text-xs text-muted">{s.description}</div>}
               </div>
               <Link
                 to="/docs"
                 search={{ path: s.path }}
-                className="rounded-lg px-2.5 py-1 text-xs text-stone-500 hover:bg-stone-100"
+                className="rounded-lg px-2.5 py-1 text-xs text-muted hover:bg-active"
               >
                 Edit
               </Link>

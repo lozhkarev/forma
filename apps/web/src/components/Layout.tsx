@@ -8,14 +8,17 @@ import { ChatPanel } from './chat/ChatPanel';
 import { ChatProvider, useChat } from './chat/ChatProvider';
 
 const NAV = [
-  { to: '/today', label: 'Today', icon: '◎' },
-  { to: '/tasks', label: 'Tasks', icon: '☑' },
-  { to: '/projects', label: 'Projects', icon: '▤' },
-  { to: '/agents', label: 'Agents', icon: '◆' },
-  { to: '/reports', label: 'Reports', icon: '▦' },
-  { to: '/docs', label: 'Docs', icon: '✎' },
-  { to: '/settings', label: 'Settings', icon: '⚙' },
+  { to: '/today', label: 'Today', icon: '⌂' },
+  { to: '/tasks', label: 'Tasks', icon: '✅' },
+  { to: '/projects', label: 'Projects', icon: '📁' },
+  { to: '/agents', label: 'Agents', icon: '🤖' },
+  { to: '/reports', label: 'Reports', icon: '📊' },
+  { to: '/docs', label: 'Docs', icon: '📄' },
 ] as const;
+
+const navItem =
+  'flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13.5px] font-medium text-muted hover:bg-active/60';
+const navItemActive = 'flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13.5px] bg-active font-semibold text-ink-strong';
 
 /** Live-обновления: изменения vault (агент, внешний редактор) инвалидируют кеш. */
 function useVaultEvents() {
@@ -67,25 +70,28 @@ function SearchBox() {
 
   return (
     <div className="relative">
-      <input
-        value={query}
-        onChange={(e) => onChange(e.target.value)}
-        onBlur={() => setTimeout(() => setOpen(false), 150)}
-        onFocus={() => query && setOpen(true)}
-        placeholder="Search…"
-        className="w-full rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-sm focus:border-stone-400 focus:outline-none"
-      />
+      <div className="flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13.5px] text-muted">
+        <span className="text-[15px] opacity-60">⌕</span>
+        <input
+          value={query}
+          onChange={(e) => onChange(e.target.value)}
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          onFocus={() => query && setOpen(true)}
+          placeholder="Search"
+          className="w-full bg-transparent font-medium placeholder:text-faintest focus:outline-none"
+        />
+      </div>
       {open && hits.length > 0 && (
-        <div className="absolute z-20 mt-1 max-h-80 w-72 overflow-auto rounded-lg border border-stone-200 bg-white shadow-lg">
+        <div className="absolute z-20 mt-1 max-h-80 w-72 overflow-auto rounded-xl border border-line bg-surface shadow-[var(--shadow-pop)]">
           {hits.map((hit) => (
             <button
               key={hit.path}
               onMouseDown={() => openDoc(hit.path)}
-              className="block w-full px-3 py-2 text-left text-sm hover:bg-stone-50"
+              className="block w-full px-3 py-2 text-left text-sm hover:bg-surface-2"
             >
-              <div className="font-medium">{hit.title}</div>
+              <div className="font-medium text-ink-strong">{hit.title}</div>
               <div
-                className="truncate text-xs text-stone-500"
+                className="truncate text-xs text-faint"
                 dangerouslySetInnerHTML={{ __html: hit.snippet }}
               />
             </button>
@@ -96,46 +102,99 @@ function SearchBox() {
   );
 }
 
+function FormaAIItem() {
+  const chat = useChat();
+  const on = chat.isOpen;
+  return (
+    <button
+      onClick={chat.toggle}
+      className={clsx(
+        'flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13.5px]',
+        on ? 'font-semibold text-accent' : 'font-medium text-muted hover:bg-active/60',
+      )}
+    >
+      <span
+        className={clsx(
+          'inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-[5px]',
+          on ? 'bg-accent' : 'bg-accent-soft',
+        )}
+      >
+        <span className={clsx('h-1.5 w-1.5 rounded-full', on ? 'bg-white' : 'bg-accent')} />
+      </span>
+      Forma AI
+    </button>
+  );
+}
+
 function LayoutInner() {
   useVaultEvents();
   const chat = useChat();
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   return (
-    <div className="flex h-screen">
-      <aside className="flex w-56 shrink-0 flex-col gap-4 border-r border-stone-200 bg-white p-4">
-        <div className="flex items-center gap-2 px-1">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-stone-900 font-bold text-white">
-            F
-          </div>
-          <span className="text-lg font-semibold tracking-tight">Forma</span>
+    <div className="flex h-screen bg-surface">
+      {sidebarOpen && (
+      <aside className="flex w-64 shrink-0 flex-col gap-0.5 border-r border-line bg-sidebar px-2 py-2.5">
+        {/* workspace switcher */}
+        <div className="mb-1 flex items-center gap-1">
+          <Link to="/today" className="flex min-w-0 flex-1 items-center gap-2.5 rounded-md px-2 py-1.5 hover:bg-active/50">
+            <span className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-md bg-accent shadow-[var(--shadow-accent)]">
+              <span className="text-[14px] font-extrabold leading-none text-white">Φ</span>
+            </span>
+            <span className="flex-1 truncate text-[14px] font-semibold text-ink-strong">Forma</span>
+          </Link>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            title="Collapse sidebar"
+            className="rounded-md px-1.5 py-1 text-faintest hover:bg-active"
+          >
+            «
+          </button>
         </div>
+
         <SearchBox />
+        <FormaAIItem />
+
+        <div className="h-2" />
+
         <nav className="flex flex-col gap-0.5">
           {NAV.map((item) => (
             <Link
               key={item.to}
               to={item.to}
-              className="rounded-lg px-3 py-1.5 text-sm text-stone-600 hover:bg-stone-100"
-              activeProps={{
-                className: clsx('rounded-lg px-3 py-1.5 text-sm', 'bg-stone-100 font-medium text-stone-900'),
-              }}
+              className={navItem}
+              activeProps={{ className: navItemActive }}
             >
-              <span className="mr-2 opacity-60">{item.icon}</span>
+              <span className="text-[15px]">{item.icon}</span>
               {item.label}
             </Link>
           ))}
         </nav>
-        <button
-          onClick={chat.toggle}
-          className={clsx(
-            'mt-auto flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm',
-            chat.isOpen ? 'bg-stone-100 font-medium text-stone-900' : 'text-stone-600 hover:bg-stone-100',
-          )}
-        >
-          <span className="opacity-60">✦</span>
-          Agent
-        </button>
+
+        <div className="flex-1" />
+
+        <Link to="/settings" className={navItem} activeProps={{ className: navItemActive }}>
+          <span className="text-[15px] opacity-70">⚙</span>
+          Settings
+        </Link>
       </aside>
-      <main className="min-w-0 flex-1 overflow-auto">
+      )}
+
+      {!sidebarOpen && (
+        <button
+          onClick={() => setSidebarOpen(true)}
+          title="Show sidebar"
+          className="fixed left-2 top-2 z-30 rounded-md border border-line bg-surface px-2 py-1 text-sm text-muted shadow-[var(--shadow-soft)] hover:bg-active"
+        >
+          ☰
+        </button>
+      )}
+
+      <main
+        className={clsx(
+          'min-w-0 flex-1 overflow-auto bg-surface',
+          chat.isOpen && chat.expanded && 'hidden',
+        )}
+      >
         <Outlet />
       </main>
       <ChatPanel />

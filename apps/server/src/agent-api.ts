@@ -9,6 +9,8 @@ import type { AgentRuntime } from './runtime.js';
 interface CreateBody {
   permission?: PermissionProfile;
   contextDocPath?: string | null;
+  /** A selected fragment to give the agent as context on the first message. */
+  contextSelection?: string;
   model?: string;
   /** Reattach to an existing persisted chat instead of creating a new one. */
   resume?: string;
@@ -39,6 +41,7 @@ export function createAgentRoutes(runtime: AgentRuntime): Hono {
     const session = await runtime.createSession({
       permission: body.permission,
       contextDocPath: body.contextDocPath,
+      contextSelection: body.contextSelection,
       model: body.model,
     });
     return c.json(session.summary(), 201);

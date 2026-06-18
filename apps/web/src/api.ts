@@ -88,6 +88,7 @@ export const api = {
       permission?: PermissionProfile;
       model?: string;
       contextDocPath?: string | null;
+      contextSelection?: string;
     }) =>
       request<SessionSummary>('/api/agent/sessions', {
         method: 'POST',

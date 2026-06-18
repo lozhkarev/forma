@@ -22,21 +22,21 @@ export function ReportsPage() {
       <h1 className="mb-4 text-2xl font-semibold tracking-tight">Reports</h1>
 
       {files.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-stone-200 px-4 py-12 text-center text-sm text-stone-400">
+        <div className="rounded-xl border border-dashed border-line px-4 py-12 text-center text-sm text-faintest">
           No reports yet. Enable the <span className="font-medium">weekly-report</span> agent or run
-          it from <Link to="/agents" className="underline hover:text-stone-600">Agents</Link>.
+          it from <Link to="/agents" className="underline hover:text-muted">Agents</Link>.
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-stone-200 shadow-sm">
+        <div className="overflow-hidden rounded-xl border border-line shadow-sm">
           {files.map((f) => (
             <Link
               key={f.path}
               to="/docs"
               search={{ path: f.path }}
-              className="block border-b border-stone-100 bg-white px-4 py-3 last:border-0 hover:bg-stone-50"
+              className="block border-b border-line-soft bg-surface px-4 py-3 last:border-0 hover:bg-surface-2"
             >
               <div className="font-medium">{f.name.replace(/\.md$/, '')}</div>
-              <div className="truncate font-mono text-xs text-stone-400">{f.path}</div>
+              <div className="truncate font-mono text-xs text-faintest">{f.path}</div>
             </Link>
           ))}
         </div>

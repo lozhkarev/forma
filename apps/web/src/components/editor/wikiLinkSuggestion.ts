@@ -32,9 +32,9 @@ function createRenderer(): SuggestionOptions<DocItem>['render'] {
       items.forEach((item, i) => {
         const b = document.createElement('button');
         b.className = `block w-full px-3 py-1.5 text-left text-sm ${
-          i === selected ? 'bg-stone-100' : 'hover:bg-stone-50'
+          i === selected ? 'bg-active' : 'hover:bg-surface-2'
         }`;
-        b.innerHTML = `<div class="truncate">${escapeHtml(item.title)}</div><div class="truncate font-mono text-[10px] text-stone-400">${escapeHtml(item.path)}</div>`;
+        b.innerHTML = `<div class="truncate text-ink-strong">${escapeHtml(item.title)}</div><div class="truncate font-mono text-[10px] text-faintest">${escapeHtml(item.path)}</div>`;
         b.addEventListener('mousedown', (e) => {
           e.preventDefault();
           pick?.(item);
@@ -57,7 +57,7 @@ function createRenderer(): SuggestionOptions<DocItem>['render'] {
         pick = (item) => props.command(item);
         el = document.createElement('div');
         el.className =
-          'absolute z-50 max-h-64 w-72 overflow-auto rounded-lg border border-stone-200 bg-white shadow-lg';
+          'absolute z-50 max-h-64 w-72 overflow-auto rounded-lg border border-line bg-surface shadow-[var(--shadow-pop)]';
         document.body.appendChild(el);
         draw();
         place(props.clientRect?.());

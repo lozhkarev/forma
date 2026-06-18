@@ -10,12 +10,12 @@ export const STATUS_LABELS: Record<TaskStatus, string> = {
 };
 
 export const STATUS_COLORS: Record<TaskStatus, string> = {
-  inbox: 'bg-stone-200 text-stone-700',
+  inbox: 'bg-chip text-body',
   todo: 'bg-sky-100 text-sky-800',
   in_progress: 'bg-amber-100 text-amber-800',
   blocked: 'bg-rose-100 text-rose-800',
   done: 'bg-emerald-100 text-emerald-800',
-  cancelled: 'bg-stone-100 text-stone-400',
+  cancelled: 'bg-chip text-faintest',
 };
 
 export const PRIORITY_LABELS: Record<TaskPriority, string> = {
@@ -26,7 +26,7 @@ export const PRIORITY_LABELS: Record<TaskPriority, string> = {
 };
 
 export const PRIORITY_DOTS: Record<TaskPriority, string> = {
-  low: 'bg-stone-300',
+  low: 'bg-ghost',
   normal: 'bg-sky-400',
   high: 'bg-amber-500',
   urgent: 'bg-rose-500',

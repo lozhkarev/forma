@@ -16,7 +16,7 @@ export function TaskItem({ task }: { task: TaskRow }) {
   const closed = task.status === 'done' || task.status === 'cancelled';
 
   return (
-    <div className="flex items-center gap-3 border-b border-stone-100 bg-white px-4 py-2.5 last:border-0">
+    <div className="flex items-center gap-3 border-b border-line-soft bg-surface px-4 py-2.5 last:border-0">
       <select
         value={task.status}
         onChange={(e) => patch.mutate(e.target.value as TaskStatus)}
@@ -37,23 +37,28 @@ export function TaskItem({ task }: { task: TaskRow }) {
       <Link
         to="/docs"
         search={{ path: task.path }}
-        className={clsx('min-w-0 flex-1 truncate text-sm hover:underline', closed && 'text-stone-400 line-through')}
+        className={clsx(
+          'min-w-0 flex-1 truncate text-[14.5px] hover:underline',
+          closed ? 'text-done line-through' : 'text-body',
+        )}
       >
         {task.title}
       </Link>
       {task.tags.map((tag) => (
-        <span key={tag} className="rounded bg-stone-100 px-1.5 py-0.5 text-[10px] text-stone-500">
+        <span key={tag} className="rounded bg-chip px-1.5 py-0.5 text-[10px] text-faint">
           #{tag}
         </span>
       ))}
       {task.project && (
-        <span className="rounded-md bg-violet-50 px-2 py-0.5 text-xs text-violet-700">{task.project}</span>
+        <span className="rounded-full bg-accent-soft px-2 py-0.5 text-xs font-medium text-accent">
+          {task.project}
+        </span>
       )}
       {task.due && (
         <span
           className={clsx(
-            'rounded-md px-2 py-0.5 text-xs',
-            isOverdue(task.due) && !closed ? 'bg-rose-100 font-medium text-rose-700' : 'bg-stone-100 text-stone-500',
+            'rounded-full px-2 py-0.5 text-xs',
+            isOverdue(task.due) && !closed ? 'bg-rose-100 font-medium text-rose-700' : 'bg-chip text-faint',
           )}
         >
           {task.due}

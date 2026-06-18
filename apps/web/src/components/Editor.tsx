@@ -10,6 +10,7 @@ import type { DocFile } from '@forma/core';
 import { api, isConflict } from '../api';
 import { Backlinks } from './Backlinks';
 import { useChat } from './chat/ChatProvider';
+import { SelectionHighlight, selectionHighlightKey } from './editor/selectionHighlight';
 import { WikiLinkSuggestion } from './editor/wikiLinkSuggestion';
 import { Properties } from './Properties';
 
@@ -39,6 +40,7 @@ export function Editor({ doc, onDeleted }: Props) {
   const [dirty, setDirty] = useState(false);
   const [externalChange, setExternalChange] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [selectionText, setSelectionText] = useState('');
 
   const editor = useEditor({
     extensions: [
@@ -48,6 +50,7 @@ export function Editor({ doc, onDeleted }: Props) {
       TaskItem.configure({ nested: true }),
       Markdown.configure({ html: false, linkify: true, transformPastedText: true }),
       WikiLinkSuggestion,
+      SelectionHighlight,
     ],
     content: doc.body,
     editorProps: {
@@ -56,6 +59,10 @@ export function Editor({ doc, onDeleted }: Props) {
       },
     },
     onUpdate: () => setDirty(true),
+    onSelectionUpdate: ({ editor: ed }) => {
+      const { from, to } = ed.state.selection;
+      setSelectionText(from === to ? '' : ed.state.doc.textBetween(from, to, '\n').trim());
+    },
   });
 
   const applyDoc = (next: DocFile) => {
@@ -74,6 +81,15 @@ export function Editor({ doc, onDeleted }: Props) {
     else setExternalChange(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doc.mtimeMs]);
+
+  // Keep the agent-context selection highlighted (persists when focus leaves).
+  useEffect(() => {
+    if (!editor) return;
+    const sel = chat.contextSelection;
+    const range = sel && sel.docPath === loaded.path ? { from: sel.from, to: sel.to } : null;
+    editor.view.dispatch(editor.state.tr.setMeta(selectionHighlightKey, range));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chat.contextSelection, editor, loaded.path]);
 
   const save = async (force = false) => {
     if (!editor || saving) return;
@@ -106,6 +122,18 @@ export function Editor({ doc, onDeleted }: Props) {
     onDeleted();
   };
 
+  const discussSelection = () => {
+    if (!editor || !selectionText) {
+      chat.startWithDoc(loaded.path);
+      return;
+    }
+    const { from, to } = editor.state.selection;
+    const startLine = editor.state.doc.textBetween(0, from, '\n', '\n').split('\n').length;
+    const endLine = editor.state.doc.textBetween(0, to, '\n', '\n').split('\n').length;
+    const lines = startLine === endLine ? `${startLine}` : `${startLine}–${endLine}`;
+    chat.startWithSelection({ docPath: loaded.path, from, to, lines, text: selectionText });
+  };
+
   const changed = dirty || frontmatter !== loaded.frontmatter;
 
   return (
@@ -118,8 +146,8 @@ export function Editor({ doc, onDeleted }: Props) {
         }
       }}
     >
-      <div className="flex items-center gap-3 border-b border-stone-200 bg-white px-6 py-3">
-        <span className="truncate font-mono text-xs text-stone-400">{loaded.path}</span>
+      <div className="flex items-center gap-3 border-b border-line bg-surface px-6 py-3">
+        <span className="truncate font-mono text-xs text-faintest">{loaded.path}</span>
         <span className="ml-auto" />
         {externalChange && (
           <button
@@ -131,28 +159,32 @@ export function Editor({ doc, onDeleted }: Props) {
           </button>
         )}
         <button
-          onClick={() => chat.startWithDoc(loaded.path)}
-          className="rounded-lg px-3 py-1.5 text-sm text-stone-500 hover:bg-stone-100"
-          title="Discuss this document with the agent"
+          onClick={discussSelection}
+          className="rounded-lg px-3 py-1.5 text-sm text-muted hover:bg-active"
+          title={
+            selectionText
+              ? 'Discuss the selected text with the agent'
+              : 'Discuss this document with the agent'
+          }
         >
-          ✦ Discuss
+          ✦ {selectionText ? 'Discuss selection' : 'Discuss'}
         </button>
         <button
           onClick={() => void save()}
           disabled={!changed || saving}
-          className="rounded-lg bg-stone-900 px-4 py-1.5 text-sm text-white disabled:bg-stone-300"
+          className="rounded-lg bg-accent px-4 py-1.5 text-sm text-white disabled:bg-line-strong"
         >
           {saving ? 'Saving…' : changed ? 'Save' : 'Saved'}
         </button>
         <button
           onClick={() => void remove()}
-          className="rounded-lg px-2 py-1.5 text-sm text-stone-400 hover:bg-rose-50 hover:text-rose-600"
+          className="rounded-lg px-2 py-1.5 text-sm text-faintest hover:bg-rose-50 hover:text-rose-600"
           title="Delete document"
         >
           🗑
         </button>
       </div>
-      <div className="border-b border-stone-200 bg-white px-6 py-2">
+      <div className="border-b border-line bg-surface px-6 py-2">
         <Properties
           frontmatter={frontmatter}
           onChange={(fm) => {
@@ -161,7 +193,7 @@ export function Editor({ doc, onDeleted }: Props) {
           }}
         />
       </div>
-      <div className="flex-1 overflow-auto bg-white px-6 pb-10">
+      <div className="flex-1 overflow-auto bg-surface px-6 pb-10">
         <EditorContent editor={editor} className="mx-auto max-w-3xl" />
         <Backlinks path={loaded.path} />
       </div>

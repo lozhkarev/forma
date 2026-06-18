@@ -51,7 +51,7 @@ export function ChatInput({
   };
 
   return (
-    <div className="rounded-2xl border border-stone-200 bg-white shadow-sm focus-within:border-stone-300">
+    <div className="rounded-[18px] border border-line-strong bg-surface shadow-[var(--shadow-composer)] focus-within:border-accent-border">
       <textarea
         ref={ref}
         value={value}
@@ -63,15 +63,15 @@ export function ChatInput({
           }
         }}
         rows={1}
-        placeholder="Do anything"
-        className="block max-h-52 w-full resize-none bg-transparent px-4 pt-3 pb-1 text-sm placeholder:text-stone-400 focus:outline-none"
+        placeholder="Ask Forma AI…"
+        className="block max-h-52 w-full resize-none bg-transparent px-4 pb-1 pt-3 text-sm text-body placeholder:text-faintest focus:outline-none"
       />
-      <div className="flex items-center gap-2 px-2.5 pb-2 pt-1 text-stone-500">
+      <div className="flex items-center gap-2 px-2.5 pb-2 pt-1 text-ghost">
         <select
           value={permission}
           disabled={permissionLocked}
           onChange={(e) => onPermissionChange(e.target.value as PermissionProfile)}
-          className="rounded-md px-1.5 py-1 text-xs hover:bg-stone-100 disabled:opacity-60"
+          className="rounded-md px-1.5 py-1 text-xs font-medium hover:bg-active disabled:opacity-60"
           title={permissionLocked ? 'Permission is fixed for an active chat' : 'Permission profile for this chat'}
         >
           {PROFILES.map((p) => (
@@ -85,7 +85,7 @@ export function ChatInput({
           value={model}
           disabled={modelLocked || models.length === 0}
           onChange={(e) => onModelChange(e.target.value)}
-          className="rounded-md px-1.5 py-1 text-xs hover:bg-stone-100 disabled:opacity-60"
+          className="rounded-md px-1.5 py-1 text-xs font-medium hover:bg-active disabled:opacity-60"
           title={modelLocked ? 'Model is fixed for an active chat' : 'Model for this chat'}
         >
           {models.map((m) => (
@@ -97,7 +97,7 @@ export function ChatInput({
         {busy ? (
           <button
             onClick={onInterrupt}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-stone-200 text-stone-600 hover:bg-stone-300"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-chip text-muted hover:bg-active"
             title="Stop"
           >
             ◼
@@ -106,7 +106,7 @@ export function ChatInput({
           <button
             onClick={submit}
             disabled={value.trim() === ''}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-stone-900 text-white transition disabled:bg-stone-200 disabled:text-stone-400"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-white shadow-[var(--shadow-accent)] transition hover:bg-accent-strong disabled:bg-line-strong disabled:text-ghost disabled:shadow-none"
             title="Send"
           >
             ↑

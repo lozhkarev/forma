@@ -18,7 +18,7 @@ function NodeRow({ node, selected, onSelect, depth = 0 }: Props) {
       <div>
         <button
           onClick={() => setOpen(!open)}
-          className="flex w-full items-center gap-1 rounded px-2 py-1 text-left text-sm text-stone-600 hover:bg-stone-100"
+          className="flex w-full items-center gap-1 rounded px-2 py-1 text-left text-sm text-muted hover:bg-active"
           style={{ paddingLeft: `${depth * 12 + 8}px` }}
         >
           <span className={clsx('text-[10px] transition-transform', open && 'rotate-90')}>▶</span>
@@ -36,8 +36,8 @@ function NodeRow({ node, selected, onSelect, depth = 0 }: Props) {
     <button
       onClick={() => onSelect(node.path)}
       className={clsx(
-        'block w-full truncate rounded px-2 py-1 text-left text-sm hover:bg-stone-100',
-        selected === node.path ? 'bg-stone-200/70 font-medium text-stone-900' : 'text-stone-600',
+        'block w-full truncate rounded px-2 py-1 text-left text-sm hover:bg-active',
+        selected === node.path ? 'bg-line-strong/70 font-medium text-ink' : 'text-muted',
       )}
       style={{ paddingLeft: `${depth * 12 + 22}px` }}
       title={node.path}
