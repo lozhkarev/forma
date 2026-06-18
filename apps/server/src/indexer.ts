@@ -219,6 +219,28 @@ export class IndexService extends EventEmitter {
     });
   }
 
+  /**
+   * All documents for the editor's `[[ ]]` autocomplete. `insert` is the
+   * shortest unambiguous wiki target: the basename if it's unique in the
+   * vault, otherwise the path without extension.
+   */
+  listDocs(): Array<{ path: string; title: string; insert: string }> {
+    const rows = this.db.prepare('SELECT path, title FROM documents').all() as Array<{
+      path: string;
+      title: string;
+    }>;
+    const base = (p: string) => (p.split('/').pop() ?? p).replace(/\.md$/, '');
+    const baseCount = new Map<string, number>();
+    for (const r of rows) baseCount.set(base(r.path), (baseCount.get(base(r.path)) ?? 0) + 1);
+    return rows
+      .map((r) => ({
+        path: r.path,
+        title: r.title,
+        insert: baseCount.get(base(r.path)) === 1 ? base(r.path) : r.path.replace(/\.md$/, ''),
+      }))
+      .sort((a, b) => a.title.localeCompare(b.title));
+  }
+
   /** Documents whose body links to `target` (resolved wiki + markdown links). */
   backlinks(target: string): Array<{ path: string; title: string }> {
     const links = this.db.prepare('SELECT source, target, kind FROM links').all() as Array<{

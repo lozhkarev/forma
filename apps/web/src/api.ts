@@ -77,6 +77,8 @@ export const api = {
       `/api/backlinks?path=${encodeURIComponent(path)}`,
     ),
 
+  docs: () => request<Array<{ path: string; title: string; insert: string }>>('/api/docs'),
+
   agent: {
     listModels: () => request<{ models: AgentModel[]; default: string }>('/api/agent/models'),
 

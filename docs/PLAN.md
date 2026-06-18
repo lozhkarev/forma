@@ -256,7 +256,7 @@ http: url/headers; env/headers строками KEY=VALUE), список с edit
 
 Зависимость: `croner` добавлен в `apps/server`.
 
-## Фаза 3 «Знания» — в работе
+## Фаза 3 «Знания» ✅ (3.5 — UI-проверка за пользователем)
 
 ### 3.1 Ссылки и бэклинки ✅
 
@@ -316,11 +316,17 @@ index.md в формате §6. Резолвер ссылок (3.1) понима
 ✓ Проверено: бутстрап ставит weekly-report; wiki conformance (непустой `type`);
 бэклинк index.md→forma.md через md-ссылку; reports/ в дереве. typecheck + сборка.
 
-### 3.5 `[[ ]]`-автодополнение в редакторе — TODO
+### 3.5 `[[ ]]`-автодополнение в редакторе ✅ (UI-проверка за пользователем)
 
-- TipTap-suggestion на `[[`: источник — индекс документов (нужен эндпоинт
-  списка title/path), вставка `[[name]]` как текста (round-trip в markdown).
-- Интерактивный UI — строить и проверять с браузером в цикле (вне headless-smoke).
+Сделано: эндпоинт `GET /api/docs` (`indexer.listDocs` — title/path + `insert`:
+уникальный basename, иначе путь). TipTap-расширение `WikiLinkSuggestion`
+(`components/editor/wikiLinkSuggestion.ts`) на триггер `[[`: ванильный popup
+(без tippy/React-root), фильтрация по списку документов (грузится при монтировании
+редактора), вставка литерала `[[insert]]` (round-trip в markdown, резолвится
+индексом ссылок 3.1). Подключено в Editor (не в read-only MarkdownView).
+
+✓ Проверено headless: `/api/docs` отдаёт корректные insert; typecheck + сборка.
+Интерактивный UI (popup, навигация, вставка) — ручная проверка в браузере.
 
 ## Фаза 4 «Десктоп»
 

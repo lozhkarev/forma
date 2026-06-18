@@ -110,6 +110,8 @@ export function createApi(
 
   app.get('/api/projects', (c) => c.json(indexer.listProjects()));
 
+  app.get('/api/docs', (c) => c.json(indexer.listDocs()));
+
   app.get('/api/search', (c) => {
     const q = c.req.query('q') ?? '';
     return c.json(indexer.search(q));

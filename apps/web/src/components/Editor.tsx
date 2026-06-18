@@ -10,10 +10,14 @@ import type { DocFile } from '@forma/core';
 import { api, isConflict } from '../api';
 import { Backlinks } from './Backlinks';
 import { useChat } from './chat/ChatProvider';
+import { WikiLinkSuggestion } from './editor/wikiLinkSuggestion';
 import { Properties } from './Properties';
 
 function getMarkdown(editor: TiptapEditor): string {
-  return (editor.storage as unknown as { markdown: { getMarkdown(): string } }).markdown.getMarkdown();
+  const md = (editor.storage as unknown as { markdown: { getMarkdown(): string } }).markdown.getMarkdown();
+  // tiptap-markdown escapes `[`/`]`; unescape the double brackets so
+  // [[wiki-links]] round-trip as text (single \[ stays escaped).
+  return md.replace(/\\\[\\\[/g, '[[').replace(/\\\]\\\]/g, ']]');
 }
 
 interface Props {
@@ -43,6 +47,7 @@ export function Editor({ doc, onDeleted }: Props) {
       TaskList,
       TaskItem.configure({ nested: true }),
       Markdown.configure({ html: false, linkify: true, transformPastedText: true }),
+      WikiLinkSuggestion,
     ],
     content: doc.body,
     editorProps: {
@@ -81,6 +86,8 @@ export function Editor({ doc, onDeleted }: Props) {
         force ? undefined : loaded.mtimeMs,
       );
       setLoaded(updated);
+      // Re-sync so `changed` (which compares frontmatter identity) clears.
+      setFrontmatter(updated.frontmatter);
       setDirty(false);
       setExternalChange(false);
       void queryClient.invalidateQueries({ queryKey: ['doc', loaded.path] });
