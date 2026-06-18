@@ -298,12 +298,29 @@ librarian). Идемпотентно по числу turns; работает и 
 эндпоинт и не-live путь — ok; на дефолтной модели (sonnet) факты выгружены в
 `raw/` (haiku шаг 2 часто пропускает — это на усмотрение модели). typecheck.
 
-### 3.4 OKF-совместимость + автодополнение + отчёты — TODO
+### 3.4 OKF-совместимость + отчёты ✅
 
-- Слой знаний по OKF: `type` у wiki-страниц, формат `index.md`/`log.md`,
-  bundle-relative ссылки (см. обсуждение OKF в начале проекта).
-- `[[ ]]`-автодополнение в TipTap (источник — индекс документов).
-- Отчёты: агент `weekly-report` + представление `reports/` в UI.
+Сделано (OKF): слой `wiki/` ведём как OKF-bundle v0.1 — решение и расхождения
+задокументированы в [OKF.md](OKF.md). Стартовый `wiki/index.md` — OKF-корень
+(`okf_version: "0.1"` + секции со строками `* [Title](page.md) — описание`),
+`wiki/forma.md` несёт `type`/`description`. Skill `distill` обновлён: страницы
+с `type: wiki`/`title`/`description`/`sources:`, относительные md-ссылки,
+index.md в формате §6. Резолвер ссылок (3.1) понимает и md-, и `[[ ]]`-ссылки —
+бэклинки не сломались.
+
+Сделано (отчёты): встроенный агент `weekly-report` (cron пт 18:00,
+`enabled: false`, output `reports/`) файлами через bootstrap; страница
+«Reports» (`pages/ReportsPage.tsx`, маршрут `/reports`, пункт навигации) —
+список `reports/*.md` со ссылками в редактор.
+
+✓ Проверено: бутстрап ставит weekly-report; wiki conformance (непустой `type`);
+бэклинк index.md→forma.md через md-ссылку; reports/ в дереве. typecheck + сборка.
+
+### 3.5 `[[ ]]`-автодополнение в редакторе — TODO
+
+- TipTap-suggestion на `[[`: источник — индекс документов (нужен эндпоинт
+  списка title/path), вставка `[[name]]` как текста (round-trip в markdown).
+- Интерактивный UI — строить и проверять с браузером в цикле (вне headless-smoke).
 
 ## Фаза 4 «Десктоп»
 

@@ -12,6 +12,7 @@ const NAV = [
   { to: '/tasks', label: 'Tasks', icon: '☑' },
   { to: '/projects', label: 'Projects', icon: '▤' },
   { to: '/agents', label: 'Agents', icon: '◆' },
+  { to: '/reports', label: 'Reports', icon: '▦' },
   { to: '/docs', label: 'Docs', icon: '✎' },
   { to: '/settings', label: 'Settings', icon: '⚙' },
 ] as const;

@@ -12,6 +12,7 @@ import { Layout } from './components/Layout';
 import { AgentsPage } from './pages/AgentsPage';
 import { DocsPage } from './pages/DocsPage';
 import { ProjectsPage } from './pages/ProjectsPage';
+import { ReportsPage } from './pages/ReportsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { TasksPage } from './pages/TasksPage';
 import { TodayPage } from './pages/TodayPage';
@@ -55,6 +56,12 @@ export const agentsRoute = createRoute({
   component: AgentsPage,
 });
 
+export const reportsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/reports',
+  component: ReportsPage,
+});
+
 export const docsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/docs',
@@ -76,6 +83,7 @@ const routeTree = rootRoute.addChildren([
   tasksRoute,
   projectsRoute,
   agentsRoute,
+  reportsRoute,
   docsRoute,
   settingsRoute,
 ]);
