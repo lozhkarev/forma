@@ -1,7 +1,9 @@
 import { useQueryClient } from '@tanstack/react-query';
+import Color from '@tiptap/extension-color';
 import Link from '@tiptap/extension-link';
 import TaskItem from '@tiptap/extension-task-item';
 import TaskList from '@tiptap/extension-task-list';
+import TextStyle from '@tiptap/extension-text-style';
 import { EditorContent, useEditor, type Editor as TiptapEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { useEffect, useState } from 'react';
@@ -48,14 +50,16 @@ export function Editor({ doc, onDeleted }: Props) {
       Link.configure({ openOnClick: false }),
       TaskList,
       TaskItem.configure({ nested: true }),
-      Markdown.configure({ html: false, linkify: true, transformPastedText: true }),
+      TextStyle,
+      Color,
+      Markdown.configure({ html: true, linkify: true, transformPastedText: true }),
       WikiLinkSuggestion,
       SelectionHighlight,
     ],
     content: doc.body,
     editorProps: {
       attributes: {
-        class: 'prose prose-stone max-w-none px-1 py-4',
+        class: 'prose prose-stone max-w-none px-1 py-4 min-h-[16rem]',
       },
     },
     onUpdate: () => setDirty(true),

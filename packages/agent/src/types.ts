@@ -7,6 +7,9 @@
 /** What the agent is allowed to do in a session. See README / ARCHITECTURE §4. */
 export type PermissionProfile = 'read-only' | 'vault-write' | 'full';
 
+/** Reasoning effort level (maps to the SDK's `effort`). */
+export type AgentEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+
 export interface SessionOptions {
   /** Working directory for the agent; all file tools operate here. */
   vaultRoot: string;
@@ -15,6 +18,8 @@ export interface SessionOptions {
   resumeSessionId?: string;
   /** Model id override; provider picks a sensible default otherwise. */
   model?: string;
+  /** Reasoning effort level. */
+  effort?: AgentEffort;
   /** Hard stop after this many tool-use turns. */
   maxTurns?: number;
   /** Hard stop once estimated cost exceeds this (USD). */
@@ -60,6 +65,12 @@ export interface AgentSession {
   send(message: UserMessage): AsyncIterable<AgentEvent>;
   /** Resolve an outstanding permission_request. */
   resolvePermission(requestId: string, decision: 'allow' | 'deny'): void;
+  /** Change the model for subsequent turns. */
+  setModel(model: string): Promise<void>;
+  /** Change the permission profile for subsequent tool calls. */
+  setPermission(permission: PermissionProfile): void;
+  /** Change the reasoning effort for subsequent turns. */
+  setEffort(effort: AgentEffort): Promise<void>;
   /** Stop the in-flight turn. */
   interrupt(): Promise<void>;
   /** End the session and release resources. */

@@ -52,10 +52,8 @@ body {
   font-family: var(--font-sans);
 }
 
-/* Редактор */
-.ProseMirror {
-  min-height: 16rem;
-}
+/* Редактор. min-height задаётся только редактору документа (класс ниже),
+   иначе он распирал бы каждый MarkdownView-блок в чате/журнале. */
 .ProseMirror:focus {
   outline: none;
 }
@@ -103,6 +101,12 @@ body {
 
 mark {
   @apply rounded bg-amber-200 px-0.5;
+}
+
+/* prose forces a colour on <strong>, which overrides a parent colour span —
+   let bold inherit so `<span style="color">**bold**</span>` shows the colour. */
+.prose strong {
+  color: inherit;
 }
 
 /* Persistent highlight of the fragment sent to the agent as context. */

@@ -7,6 +7,16 @@
 
 export type PermissionProfile = 'read-only' | 'vault-write' | 'full';
 
+export type AgentEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+
+export const EFFORTS: { id: AgentEffort; label: string }[] = [
+  { id: 'low', label: 'Low' },
+  { id: 'medium', label: 'Medium' },
+  { id: 'high', label: 'High' },
+  { id: 'xhigh', label: 'Extra High' },
+  { id: 'max', label: 'Max' },
+];
+
 export type AgentEvent =
   | { type: 'session'; sessionId: string }
   | { type: 'text_delta'; text: string }
@@ -36,6 +46,7 @@ export interface SessionSummary {
   title: string | null;
   permission: PermissionProfile;
   model: string;
+  effort: AgentEffort;
   providerSessionId: string | null;
   createdAt: string;
   lastActive: string;

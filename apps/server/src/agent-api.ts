@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
-import type { PermissionProfile } from '@forma/agent';
+import type { AgentEffort, PermissionProfile } from '@forma/agent';
 import { AGENT_MODEL } from './config.js';
 import { modelsWithDefault } from './models.js';
 import { VaultError } from './vault.js';
@@ -12,12 +12,21 @@ interface CreateBody {
   /** A selected fragment to give the agent as context on the first message. */
   contextSelection?: string;
   model?: string;
+  effort?: AgentEffort;
   /** Reattach to an existing persisted chat instead of creating a new one. */
   resume?: string;
 }
 
+interface UpdateBody {
+  model?: string;
+  permission?: PermissionProfile;
+  effort?: AgentEffort;
+}
+
 interface MessageBody {
   text: string;
+  /** Extra context to prepend for this message only (agent-visible, not shown). */
+  context?: string;
 }
 
 interface PermissionBody {
@@ -43,8 +52,20 @@ export function createAgentRoutes(runtime: AgentRuntime): Hono {
       contextDocPath: body.contextDocPath,
       contextSelection: body.contextSelection,
       model: body.model,
+      effort: body.effort,
     });
     return c.json(session.summary(), 201);
+  });
+
+  // Change model / permission / reasoning effort on a live session.
+  app.patch('/sessions/:id', async (c) => {
+    const session = runtime.get(c.req.param('id'));
+    if (!session) throw new VaultError('session is not live; resume it first', 409);
+    const body = await c.req.json<UpdateBody>().catch(() => ({}) as UpdateBody);
+    if (body.permission) session.setPermission(body.permission);
+    if (body.effort) await session.setEffort(body.effort);
+    if (body.model) await session.setModel(body.model);
+    return c.json(session.summary());
   });
 
   app.get('/sessions/:id', async (c) => {
@@ -58,9 +79,9 @@ export function createAgentRoutes(runtime: AgentRuntime): Hono {
   app.post('/sessions/:id/messages', async (c) => {
     const session = runtime.get(c.req.param('id'));
     if (!session) throw new VaultError('session is not live; resume it first', 409);
-    const { text } = await c.req.json<MessageBody>();
+    const { text, context } = await c.req.json<MessageBody>();
     if (!text || text.trim() === '') throw new VaultError('text is required', 400);
-    await session.postMessage(text);
+    await session.postMessage(text, context);
     return c.json({ ok: true }, 202);
   });
 

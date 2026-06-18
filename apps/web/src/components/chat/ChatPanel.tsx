@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEven
 import { api } from '../../api';
 import {
   foldRecords,
+  type AgentEffort,
   type AgentModel,
   type PermissionProfile,
   type PersistedRecord,
@@ -36,9 +37,12 @@ export function ChatPanel() {
   const [permission, setPermission] = useState<PermissionProfile>('full');
   const [models, setModels] = useState<AgentModel[]>([]);
   const [model, setModel] = useState<string>('');
+  const [effort, setEffort] = useState<AgentEffort>('high');
   const [contextDoc, setContextDoc] = useState<string | null>(null);
   const [contextLines, setContextLines] = useState<string | null>(null);
   const [contextSelText, setContextSelText] = useState<string | null>(null);
+  // Context added to an already-open chat, to be delivered with the next message.
+  const [contextPending, setContextPending] = useState(false);
   const [records, setRecords] = useState<PersistedRecord[]>([]);
   const [resolved, setResolved] = useState<Set<string>>(new Set());
   const [history, setHistory] = useState<SessionSummary[] | null>(null);
@@ -53,16 +57,20 @@ export function ChatPanel() {
     });
   }, []);
 
-  // A document handed in from the editor ("Discuss with agent") starts a fresh chat.
+  // A document handed in from the editor ("Discuss"): attach to the open chat,
+  // or start a fresh one if none is active.
   useEffect(() => {
     if (!pendingContextDoc) return;
-    setActiveId(null);
-    setRecords([]);
-    setResolved(new Set());
+    if (!activeId) {
+      setRecords([]);
+      setResolved(new Set());
+    }
     setContextDoc(pendingContextDoc);
     setContextLines(null);
     setContextSelText(null);
+    setContextPending(Boolean(activeId));
     clearPendingDoc();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingContextDoc, clearPendingDoc]);
 
   // A ready-made prompt (e.g. "Plan my day") seeds the composer of a fresh chat.
@@ -78,16 +86,19 @@ export function ChatPanel() {
     clearPendingPrompt();
   }, [pendingPrompt, clearPendingPrompt]);
 
-  // A selection from the editor: fresh chat about the file, fragment kept as
-  // context (highlighted in the editor, shown as a "lines X–Y" chip).
+  // A selection from the editor: attach to the open chat (continue the
+  // conversation) or start a fresh one. The fragment is highlighted in the
+  // editor and shown as a "lines X–Y" chip.
   useEffect(() => {
     if (!contextSelection) return;
-    setActiveId(null);
-    setRecords([]);
-    setResolved(new Set());
+    if (!activeId) {
+      setRecords([]);
+      setResolved(new Set());
+    }
     setContextDoc(contextSelection.docPath);
     setContextLines(contextSelection.lines);
     setContextSelText(contextSelection.text);
+    setContextPending(Boolean(activeId));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contextSelection?.id]);
 
@@ -119,17 +130,26 @@ export function ChatPanel() {
 
   const send = async (text: string) => {
     let id = activeId;
+    let context: string | undefined;
     if (!id) {
       const session = await api.agent.createSession({
         permission,
         model: model || undefined,
+        effort,
         contextDocPath: contextDoc,
         contextSelection: contextSelText ?? undefined,
       });
       id = session.id;
       setActiveId(id);
+    } else if (contextPending) {
+      // Deliver newly-added context to the ongoing conversation, once.
+      const parts: string[] = [];
+      if (contextDoc) parts.push(`We are discussing the vault file \`${contextDoc}\`.`);
+      if (contextSelText) parts.push(`Relevant selection:\n${contextSelText}`);
+      context = parts.length > 0 ? parts.join('\n\n') : undefined;
     }
-    await api.agent.sendMessage(id, text);
+    await api.agent.sendMessage(id, text, context);
+    setContextPending(false);
   };
 
   const onPermission = async (requestId: string, decision: 'allow' | 'deny') => {
@@ -142,10 +162,26 @@ export function ChatPanel() {
     if (activeId) await api.agent.interrupt(activeId);
   };
 
+  // Model / permission / reasoning are editable any time; apply live if a chat
+  // is already running, otherwise they take effect when it's created.
+  const changePermission = (p: PermissionProfile) => {
+    setPermission(p);
+    if (activeId) void api.agent.updateSession(activeId, { permission: p });
+  };
+  const changeModel = (m: string) => {
+    setModel(m);
+    if (activeId) void api.agent.updateSession(activeId, { model: m });
+  };
+  const changeEffort = (e: AgentEffort) => {
+    setEffort(e);
+    if (activeId) void api.agent.updateSession(activeId, { effort: e });
+  };
+
   const clearContext = () => {
     setContextDoc(null);
     setContextLines(null);
     setContextSelText(null);
+    setContextPending(false);
     clearContextSelection();
   };
 
@@ -183,9 +219,11 @@ export function ChatPanel() {
     await api.agent.resumeSession(summary.id);
     setPermission(summary.permission);
     setModel(summary.model);
+    setEffort(summary.effort);
     setContextDoc(summary.contextDocPath);
     setContextLines(null);
     setContextSelText(null);
+    setContextPending(false);
     clearContextSelection();
     setResolved(new Set());
     setHistory(null);
@@ -276,29 +314,50 @@ export function ChatPanel() {
         </div>
       </div>
 
-      <div className="border-t border-line-soft bg-panel">
+      <div className="bg-panel">
         <div className={clsx('space-y-2 p-3', expanded && 'mx-auto w-full max-w-3xl')}>
-        {contextDoc && (
-          <div className="flex items-center gap-1 text-xs text-muted">
-            <span className="rounded bg-accent-soft px-1.5 py-0.5 font-mono text-accent">
-              {contextDoc}
-              {contextLines ? ` · lines ${contextLines}` : ''}
-            </span>
-            <button onClick={clearContext} className="text-faintest hover:text-muted">
-              ✕
-            </button>
+        {(contextDoc || contextLines) && (
+          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+            {contextDoc && (
+              <span className="flex items-center gap-1 rounded bg-accent-soft px-1.5 py-0.5 font-mono text-accent">
+                {contextDoc}
+                <button
+                  onClick={() => setContextDoc(null)}
+                  className="text-accent/60 hover:text-accent"
+                  title="Remove file context"
+                >
+                  ✕
+                </button>
+              </span>
+            )}
+            {contextLines && (
+              <span className="flex items-center gap-1 rounded bg-accent-soft px-1.5 py-0.5 text-accent">
+                lines {contextLines}
+                <button
+                  onClick={() => {
+                    setContextLines(null);
+                    setContextSelText(null);
+                    clearContextSelection();
+                  }}
+                  className="text-accent/60 hover:text-accent"
+                  title="Remove selection"
+                >
+                  ✕
+                </button>
+              </span>
+            )}
           </div>
         )}
         <ChatInput
           value={draft}
           onChange={setDraft}
           permission={permission}
-          permissionLocked={Boolean(activeId)}
-          onPermissionChange={setPermission}
+          onPermissionChange={changePermission}
           models={models}
           model={model}
-          modelLocked={Boolean(activeId)}
-          onModelChange={setModel}
+          onModelChange={changeModel}
+          effort={effort}
+          onEffortChange={changeEffort}
           onSend={send}
           busy={busy}
           onInterrupt={interrupt}

@@ -1,6 +1,8 @@
+import Color from '@tiptap/extension-color';
 import Link from '@tiptap/extension-link';
 import TaskItem from '@tiptap/extension-task-item';
 import TaskList from '@tiptap/extension-task-list';
+import TextStyle from '@tiptap/extension-text-style';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { useEffect } from 'react';
@@ -18,7 +20,9 @@ export function MarkdownView({ markdown, className }: { markdown: string; classN
       Link.configure({ openOnClick: true }),
       TaskList,
       TaskItem.configure({ nested: true }),
-      Markdown.configure({ html: false, linkify: true }),
+      TextStyle,
+      Color,
+      Markdown.configure({ html: true, linkify: true }),
     ],
     content: markdown,
     editorProps: {

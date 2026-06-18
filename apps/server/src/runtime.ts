@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {
   ClaudeAgentProvider,
+  type AgentEffort,
   type AgentEvent,
   type AgentProvider,
   type AgentSession,
@@ -25,6 +26,7 @@ export interface SessionSummary {
   title: string | null;
   permission: PermissionProfile;
   model: string;
+  effort: AgentEffort;
   providerSessionId: string | null;
   createdAt: string;
   lastActive: string;
@@ -139,11 +141,14 @@ export class RuntimeSession {
   private queue: string[] = [];
   private busy = false;
 
+  /** Reasoning effort; mutable like permission/model (live-changeable). */
+  effort: AgentEffort = 'high';
+
   constructor(
     readonly id: string,
     readonly dir: string,
-    readonly permission: PermissionProfile,
-    readonly model: string,
+    public permission: PermissionProfile,
+    public model: string,
     readonly contextDocPath: string | null,
     readonly createdAt: string,
     private agent: AgentSession,
@@ -152,12 +157,31 @@ export class RuntimeSession {
     this.lastActive = createdAt;
   }
 
+  async setModel(model: string): Promise<void> {
+    this.model = model;
+    await this.agent.setModel(model);
+    await this.saveMeta();
+  }
+
+  setPermission(permission: PermissionProfile): void {
+    this.permission = permission;
+    this.agent.setPermission(permission);
+    void this.saveMeta();
+  }
+
+  async setEffort(effort: AgentEffort): Promise<void> {
+    this.effort = effort;
+    await this.agent.setEffort(effort);
+    await this.saveMeta();
+  }
+
   summary(): SessionSummary {
     return {
       id: this.id,
       title: this.title,
       permission: this.permission,
       model: this.model,
+      effort: this.effort,
       providerSessionId: this.providerSessionId,
       createdAt: this.createdAt,
       lastActive: this.lastActive,
@@ -172,7 +196,7 @@ export class RuntimeSession {
   }
 
   /** Accept a user message: persist, publish, and queue a turn. Returns immediately. */
-  async postMessage(text: string): Promise<void> {
+  async postMessage(text: string, context?: string): Promise<void> {
     let message = text;
     if (this.title === null) {
       this.title = text.replace(/\s+/g, ' ').trim().slice(0, 80) || 'Untitled chat';
@@ -181,6 +205,9 @@ export class RuntimeSession {
       if (this.contextDocPath) ctx.push(`We are discussing the vault file \`${this.contextDocPath}\`.`);
       if (this.contextSelection) ctx.push(`Relevant selection:\n${this.contextSelection}`);
       if (ctx.length > 0) message = `(Context: ${ctx.join('\n\n')})\n\n${text}`;
+    } else if (context) {
+      // Mid-conversation context (e.g. a new selection) — agent-visible only.
+      message = `(Context: ${context})\n\n${text}`;
     }
     await this.record({ type: 'user', text });
     this.queue.push(message);
@@ -267,6 +294,7 @@ export class RuntimeSession {
       providerSessionId: this.providerSessionId,
       permission: this.permission,
       model: this.model,
+      effort: this.effort,
       costUsd: Number(this.costUsd.toFixed(4)),
       turns: this.turns,
       ...(this.contextDocPath ? { contextDoc: this.contextDocPath } : {}),
@@ -303,9 +331,11 @@ export class AgentRuntime {
     contextDocPath?: string | null;
     contextSelection?: string;
     model?: string;
+    effort?: AgentEffort;
   }): Promise<RuntimeSession> {
     const permission = opts.permission ?? 'full';
     const model = opts.model ?? this.config.model ?? 'claude-sonnet-4-6';
+    const effort = opts.effort ?? 'high';
     const id = `${nowIso().slice(0, 10)}-${randomBytes(3).toString('hex')}`;
     const dir = path.join(this.chatsDir, id);
     await fs.mkdir(dir, { recursive: true });
@@ -314,6 +344,7 @@ export class AgentRuntime {
       vaultRoot: this.vaultRoot,
       permission,
       model,
+      effort,
       maxTurns: this.config.maxTurns,
       maxCostUsd: this.config.maxCostUsd,
     });
@@ -328,6 +359,7 @@ export class AgentRuntime {
       agent,
       this.semaphore,
     );
+    session.effort = effort;
     session.onActivity = () => this.armSummary(id);
     session.contextSelection = opts.contextSelection ?? null;
     this.sessions.set(id, session);
@@ -355,11 +387,13 @@ export class AgentRuntime {
         : (this.config.model ?? 'claude-sonnet-4-6');
     const providerSessionId =
       typeof frontmatter['providerSessionId'] === 'string' ? frontmatter['providerSessionId'] : undefined;
+    const effort = (frontmatter['effort'] as AgentEffort) ?? 'high';
 
     const agent = this.provider.createSession({
       vaultRoot: this.vaultRoot,
       permission,
       model,
+      effort,
       maxTurns: this.config.maxTurns,
       maxCostUsd: this.config.maxCostUsd,
       resumeSessionId: providerSessionId,
@@ -368,6 +402,7 @@ export class AgentRuntime {
     const createdAt = typeof frontmatter['started'] === 'string' ? frontmatter['started'] : nowIso();
     const contextDoc = typeof frontmatter['contextDoc'] === 'string' ? frontmatter['contextDoc'] : null;
     const session = new RuntimeSession(id, dir, permission, model, contextDoc, createdAt, agent, this.semaphore);
+    session.effort = effort;
     session.title = typeof frontmatter['title'] === 'string' ? frontmatter['title'] : null;
     session.providerSessionId = providerSessionId ?? null;
     session.costUsd = typeof frontmatter['costUsd'] === 'number' ? frontmatter['costUsd'] : 0;
@@ -516,6 +551,7 @@ export class AgentRuntime {
           title: (frontmatter['title'] as string) ?? null,
           permission: (frontmatter['permission'] as PermissionProfile) ?? 'full',
           model: (frontmatter['model'] as string) ?? (this.config.model ?? 'claude-sonnet-4-6'),
+          effort: (frontmatter['effort'] as AgentEffort) ?? 'high',
           providerSessionId: (frontmatter['providerSessionId'] as string) ?? null,
           createdAt: (frontmatter['started'] as string) ?? '',
           lastActive: (frontmatter['lastActive'] as string) ?? '',

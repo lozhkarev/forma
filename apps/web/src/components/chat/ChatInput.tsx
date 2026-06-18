@@ -1,17 +1,17 @@
 import { useLayoutEffect, useRef } from 'react';
-import type { AgentModel, PermissionProfile } from '../../lib/chat';
-import { permissionLabel } from '../../lib/chat';
+import type { AgentEffort, AgentModel, PermissionProfile } from '../../lib/chat';
+import { EFFORTS, permissionLabel } from '../../lib/chat';
 
 interface Props {
   value: string;
   onChange: (text: string) => void;
   permission: PermissionProfile;
-  permissionLocked: boolean;
   onPermissionChange: (p: PermissionProfile) => void;
   models: AgentModel[];
   model: string;
-  modelLocked: boolean;
   onModelChange: (id: string) => void;
+  effort: AgentEffort;
+  onEffortChange: (e: AgentEffort) => void;
   onSend: (text: string) => void;
   busy: boolean;
   onInterrupt: () => void;
@@ -19,17 +19,20 @@ interface Props {
 
 const PROFILES: PermissionProfile[] = ['full', 'vault-write', 'read-only'];
 
-/** Minimal "Do anything" composer, styled after the reference. */
+const selectClass =
+  'rounded-md px-1.5 py-1 text-xs font-medium hover:bg-active focus:outline-none';
+
+/** Minimal "Do anything" composer; model / permission / reasoning are live-editable. */
 export function ChatInput({
   value,
   onChange,
   permission,
-  permissionLocked,
   onPermissionChange,
   models,
   model,
-  modelLocked,
   onModelChange,
+  effort,
+  onEffortChange,
   onSend,
   busy,
   onInterrupt,
@@ -66,13 +69,12 @@ export function ChatInput({
         placeholder="Ask Forma AI…"
         className="block max-h-52 w-full resize-none bg-transparent px-4 pb-1 pt-3 text-sm text-body placeholder:text-faintest focus:outline-none"
       />
-      <div className="flex items-center gap-2 px-2.5 pb-2 pt-1 text-ghost">
+      <div className="flex items-center gap-1 px-2.5 pb-2 pt-1 text-ghost">
         <select
           value={permission}
-          disabled={permissionLocked}
           onChange={(e) => onPermissionChange(e.target.value as PermissionProfile)}
-          className="rounded-md px-1.5 py-1 text-xs font-medium hover:bg-active disabled:opacity-60"
-          title={permissionLocked ? 'Permission is fixed for an active chat' : 'Permission profile for this chat'}
+          className={selectClass}
+          title="Permission profile"
         >
           {PROFILES.map((p) => (
             <option key={p} value={p}>
@@ -82,11 +84,23 @@ export function ChatInput({
         </select>
         <div className="ml-auto" />
         <select
+          value={effort}
+          onChange={(e) => onEffortChange(e.target.value as AgentEffort)}
+          className={selectClass}
+          title="Reasoning effort"
+        >
+          {EFFORTS.map((e) => (
+            <option key={e.id} value={e.id}>
+              {e.label}
+            </option>
+          ))}
+        </select>
+        <select
           value={model}
-          disabled={modelLocked || models.length === 0}
+          disabled={models.length === 0}
           onChange={(e) => onModelChange(e.target.value)}
-          className="rounded-md px-1.5 py-1 text-xs font-medium hover:bg-active disabled:opacity-60"
-          title={modelLocked ? 'Model is fixed for an active chat' : 'Model for this chat'}
+          className={`${selectClass} disabled:opacity-60`}
+          title="Model"
         >
           {models.map((m) => (
             <option key={m.id} value={m.id}>

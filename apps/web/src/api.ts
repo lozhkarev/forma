@@ -87,12 +87,19 @@ export const api = {
     createSession: (opts: {
       permission?: PermissionProfile;
       model?: string;
+      effort?: string;
       contextDocPath?: string | null;
       contextSelection?: string;
     }) =>
       request<SessionSummary>('/api/agent/sessions', {
         method: 'POST',
         body: JSON.stringify(opts),
+      }),
+
+    updateSession: (id: string, patch: { model?: string; permission?: PermissionProfile; effort?: string }) =>
+      request<SessionSummary>(`/api/agent/sessions/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
       }),
 
     resumeSession: (id: string) =>
@@ -106,10 +113,10 @@ export const api = {
         `/api/agent/sessions/${encodeURIComponent(id)}`,
       ),
 
-    sendMessage: (id: string, text: string) =>
+    sendMessage: (id: string, text: string, context?: string) =>
       request<{ ok: boolean }>(`/api/agent/sessions/${encodeURIComponent(id)}/messages`, {
         method: 'POST',
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, context }),
       }),
 
     resolvePermission: (id: string, requestId: string, decision: 'allow' | 'deny') =>

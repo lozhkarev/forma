@@ -3,6 +3,7 @@ import path from 'node:path';
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import { Channel, Gate } from './channel.js';
 import type {
+  AgentEffort,
   AgentEvent,
   AgentProvider,
   AgentSession,
@@ -10,6 +11,22 @@ import type {
   SessionOptions,
   UserMessage,
 } from './types.js';
+
+/** Reasoning effort → thinking-token budget for the live setter (max = no limit). */
+function effortToTokens(effort: AgentEffort): number | null {
+  switch (effort) {
+    case 'low':
+      return 2000;
+    case 'medium':
+      return 8000;
+    case 'high':
+      return 16000;
+    case 'xhigh':
+      return 32000;
+    case 'max':
+      return null;
+  }
+}
 
 // Tools that only read state — always safe.
 const READ_TOOLS = new Set(['Read', 'Glob', 'Grep', 'NotebookRead', 'TodoWrite']);
@@ -62,6 +79,22 @@ class ClaudeAgentSession implements AgentSession {
     }
   }
 
+  async setModel(model: string): Promise<void> {
+    this.opts.model = model;
+    await this.query?.setModel(model);
+  }
+
+  setPermission(permission: PermissionProfile): void {
+    // canUseTool reads this.opts.permission on each call — takes effect immediately.
+    this.opts.permission = permission;
+  }
+
+  async setEffort(effort: AgentEffort): Promise<void> {
+    this.opts.effort = effort;
+    // No runtime effort setter in the SDK; approximate via the thinking budget.
+    await this.query?.setMaxThinkingTokens(effortToTokens(effort));
+  }
+
   async interrupt(): Promise<void> {
     await this.query?.interrupt();
   }
@@ -89,6 +122,7 @@ class ClaudeAgentSession implements AgentSession {
         permissionMode: 'default',
         canUseTool: (toolName: string, input: unknown) => this.canUseTool(toolName, input),
         ...(opts.model ? { model: opts.model } : {}),
+        ...(opts.effort ? { effort: opts.effort } : {}),
         ...(opts.maxTurns ? { maxTurns: opts.maxTurns } : {}),
         ...(opts.maxCostUsd ? { maxBudgetUsd: opts.maxCostUsd } : {}),
         ...(opts.resumeSessionId ? { resume: opts.resumeSessionId } : {}),
