@@ -107,6 +107,76 @@ fn keychain_env() -> Vec<(String, String)> {
     out
 }
 
+/// (Re)start the Node server sidecar for the given vault. Kills any running
+/// instance first, then injects port / vault / agent-binary / keychain env.
+fn build_and_spawn(app: &AppHandle, vault: &str) -> Result<(), String> {
+    if let Some(child) = app.state::<ServerProcess>().0.lock().unwrap().take() {
+        let _ = child.kill();
+    }
+    let claude_bin = agent_binary();
+    let mut sidecar = app
+        .shell()
+        .sidecar("forma-server")
+        .map_err(|e| e.to_string())?
+        .env("FORMA_PORT", "8787")
+        .env("FORMA_VAULT", vault)
+        .env("FORMA_CLAUDE_BIN", claude_bin.to_string_lossy().to_string());
+    for (k, v) in keychain_env() {
+        sidecar = sidecar.env(k, v);
+    }
+    let (mut rx, child) = sidecar.spawn().map_err(|e| e.to_string())?;
+    app.state::<ServerProcess>().0.lock().unwrap().replace(child);
+
+    tauri::async_runtime::spawn(async move {
+        while let Some(event) = rx.recv().await {
+            match event {
+                CommandEvent::Stdout(line) => {
+                    print!("[server] {}", String::from_utf8_lossy(&line));
+                }
+                CommandEvent::Stderr(line) => {
+                    eprint!("[server] {}", String::from_utf8_lossy(&line));
+                }
+                CommandEvent::Terminated(payload) => {
+                    eprintln!("[server] terminated: {payload:?}");
+                }
+                _ => {}
+            }
+        }
+    });
+    Ok(())
+}
+
+#[tauri::command]
+fn get_vault(app: AppHandle) -> String {
+    saved_vault(&app).unwrap_or_default()
+}
+
+/// Open a native folder picker; returns the chosen path (or null if cancelled).
+#[tauri::command]
+fn pick_vault(app: AppHandle) -> Option<String> {
+    app.dialog()
+        .file()
+        .set_title("Choose or create a folder for your Forma vault")
+        .blocking_pick_folder()
+        .and_then(|p| p.into_path().ok())
+        .map(|p| p.to_string_lossy().to_string())
+}
+
+/// Switch the active vault: persist it and restart the server against it.
+#[tauri::command]
+fn set_vault(app: AppHandle, path: String) -> Result<(), String> {
+    std::fs::create_dir_all(&path).map_err(|e| e.to_string())?;
+    save_vault(&app, &path);
+    build_and_spawn(&app, &path)
+}
+
+/// Restart the server (e.g. to pick up changed credentials).
+#[tauri::command]
+fn restart_server(app: AppHandle) -> Result<(), String> {
+    let vault = saved_vault(&app).ok_or_else(|| "no vault configured".to_string())?;
+    build_and_spawn(&app, &vault)
+}
+
 /// Store (or clear, when empty) a credential in the OS keychain. Callable from
 /// the frontend so a settings screen can manage secrets without plaintext files.
 #[tauri::command]
@@ -133,44 +203,18 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(ServerProcess(Mutex::new(None)))
-        .invoke_handler(tauri::generate_handler![store_credential, credential_present])
+        .invoke_handler(tauri::generate_handler![
+            store_credential,
+            credential_present,
+            get_vault,
+            pick_vault,
+            set_vault,
+            restart_server
+        ])
         .setup(|app| {
-            let handle = app.handle();
-            let vault = resolve_vault(handle);
-            let claude_bin = agent_binary();
-
-            let mut sidecar = app
-                .shell()
-                .sidecar("forma-server")
-                .expect("forma-server sidecar not found")
-                .env("FORMA_PORT", "8787")
-                .env("FORMA_VAULT", vault)
-                .env("FORMA_CLAUDE_BIN", claude_bin.to_string_lossy().to_string());
-            // Inject any keychain-stored credentials (server keeps existing env
-            // if already set, so this just provides them when absent).
-            for (k, v) in keychain_env() {
-                sidecar = sidecar.env(k, v);
-            }
-
-            let (mut rx, child) = sidecar.spawn().expect("failed to spawn forma-server");
-            app.state::<ServerProcess>().0.lock().unwrap().replace(child);
-
-            tauri::async_runtime::spawn(async move {
-                while let Some(event) = rx.recv().await {
-                    match event {
-                        CommandEvent::Stdout(line) => {
-                            print!("[server] {}", String::from_utf8_lossy(&line));
-                        }
-                        CommandEvent::Stderr(line) => {
-                            eprint!("[server] {}", String::from_utf8_lossy(&line));
-                        }
-                        CommandEvent::Terminated(payload) => {
-                            eprintln!("[server] terminated: {payload:?}");
-                        }
-                        _ => {}
-                    }
-                }
-            });
+            let handle = app.handle().clone();
+            let vault = resolve_vault(&handle);
+            build_and_spawn(&handle, &vault).expect("failed to spawn forma-server");
             Ok(())
         })
         .build(tauri::generate_context!())

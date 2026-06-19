@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { api } from '../api';
+import { DesktopSettings } from '../components/DesktopSettings';
+import { isDesktop } from '../lib/desktop';
 import type { McpServerConfig } from '../lib/settings';
 
 type Transport = 'stdio' | 'http';
@@ -225,6 +227,8 @@ export function SettingsPage() {
         Connect tools via MCP servers and review installed skills. Keep secrets in environment
         variables and reference them as <span className="font-mono">{'${VAR}'}</span>.
       </p>
+
+      {isDesktop && <DesktopSettings />}
 
       <section className="mb-10">
         <div className="mb-2 flex items-center justify-between">
