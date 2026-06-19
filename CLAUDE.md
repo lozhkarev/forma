@@ -18,6 +18,18 @@ npm test               # vitest (юнит-тесты core + VaultService)
 npm run test:watch     # vitest в watch-режиме
 ```
 
+Десктоп (Tauri 2, нужен Rust toolchain — `. "$HOME/.cargo/env"` если не в PATH):
+
+```bash
+npm run dev -w @forma/desktop          # окно Tauri; web+server поднимаются внутри
+npm run build:sidecar -w @forma/desktop  # пересобрать Node SEA sidecar (после правок server)
+npm run build -w @forma/desktop         # собрать .app (prebuild соберёт sidecar+web)
+```
+
+Первый запуск десктопа спрашивает папку vault (сохраняется в app-config). При
+правках кода сервера для десктопа нужно пересобрать sidecar — в dev обычный
+`npm run dev` (веб) удобнее.
+
 Тесты: vitest, файлы `*.test.ts` рядом с кодом. Покрыты чистые модули
 `packages/core` (frontmatter, kind, links) и `VaultService` (path
 traversal, оптимистичная блокировка, атомарная запись) на временном vault.

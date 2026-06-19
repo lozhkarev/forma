@@ -332,20 +332,53 @@ index.md в формате §6. Резолвер ссылок (3.1) понима
 Заодно фикс: кнопка Save гасла не всегда (frontmatter сравнивался по ссылке) —
 синхронизируем после сохранения.
 
-## Фаза 4 «Десктоп»
+## Фаза 4 «Десктоп» — в работе
 
-- Tauri 2: web как фронт, server как sidecar-процесс; иконка, автостарт.
-- Секреты в macOS Keychain; выбор/создание vault при первом запуске.
+Tauri 2-обёртка (`apps/desktop`): web как фронт, Node-server как sidecar.
+
+### 4.1 Скелет: Tauri 2 + sidecar ✅
+- `apps/desktop/src-tauri` — Rust-обёртка: спавнит сервер, глушит при выходе.
+- Сервер упакован в Node SEA (`scripts/build-sidecar.mjs`): esbuild-бандл →
+  инъекция в официальный статический node (Homebrew-node — лаунчер над
+  libnode.dylib, для SEA не годится; скрипт качает/кэширует нужный node).
+  `node:sqlite`/FTS5 работают без нативных зависимостей.
+- Web ходит на API через `API_BASE`: пусто в браузере (Vite-proxy), абсолютный
+  origin sidecar в Tauri-сборке.
+
+### 4.2 Агент в упаковке ✅
+- SDK запускает нативный `claude` (платформенный optional-dep, ~215MB). Кладём
+  его вторым sidecar; Rust пробрасывает `FORMA_CLAUDE_BIN`, claude.ts передаёт
+  как `pathToClaudeCodeExecutable`. Проверено end-to-end внутри приложения.
+
+### 4.3 First-run vault picker + Keychain ✅
+- Первый запуск: нативный выбор папки vault → сохраняем в app-config; дальше
+  переиспользуем (фолбэк `~/FormaVault`).
+- Креды в macOS Keychain (крейт `keyring`) → инжектятся в env sidecar; команды
+  `store_credential`/`credential_present`. Фолбэк на env / `~/.claude`.
+- Экран Settings → «Desktop»: смена vault (с рестартом сервера) и ввод кредов.
+
+### 4.4 Осталось
+- Подпись/нотаризация .app (сейчас ad-hoc codesign) — для распространения.
+- Полный `tauri build` и проверка прод-пути (.app ~350MB из-за node+claude).
+- **Открытый вопрос (дизайн):** смена vault сейчас десктоп-специфична (рестарт
+  sidecar). Лучше — серверный эндпоинт переключения vault (re-init
+  VaultService/IndexService/AgentRuntime на новый корень), тогда работает и в
+  вебе, и в десктопе без рестарта процесса. Требует сделать `VAULT_ROOT`
+  изменяемым в рантайме (сейчас const из env). См. техдолг.
 
 ---
 
 ## Техдолг и улучшения (вне фаз, брать по возможности)
 
-1. **Тесты** (приоритет, лучше до фазы 1): vitest; core — round-trip
-   frontmatter (даты!), detectKind, taskFromDoc; server — VaultService
-   (traversal, конфликты), IndexService (переиндексация, запросы);
-   agent — Channel/Gate, classify() профилей разрешений (без сети);
-   web — foldRecords/describeTool. Сейчас всё проверяется ad-hoc скриптами.
+1. **Тесты**: vitest поднят (`npm test`). Покрыто: core — frontmatter
+   round-trip (даты!), detectKind, taskFromDoc, links; server — VaultService
+   (traversal, оптимистичная блокировка, листинги). Осталось: IndexService
+   (переиндексация/запросы), agent — Channel/Gate + classify() профилей,
+   web — foldRecords/describeTool, и сам редактор (TipTap, см. ниже).
+0. **Переключение vault в рантайме (сервер)**: вынести смену vault на сервер
+   (эндпоинт + re-init VaultService/IndexService/AgentRuntime), чтобы работало
+   и в вебе, и в десктопе без рестарта процесса. `VAULT_ROOT` сейчас const из
+   env — сделать изменяемым. Закрывает дизайн-вопрос фазы 4.4.
 2. **Рендер markdown в ответах агента** (чат): сейчас pre-wrap текст. Уже есть
    переиспользуемый `components/MarkdownView.tsx` (read-only TipTap) — применить
    его в чате (учесть стриминг: рендерить по мере накопления текста).

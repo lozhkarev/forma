@@ -152,14 +152,21 @@ fn get_vault(app: AppHandle) -> String {
 }
 
 /// Open a native folder picker; returns the chosen path (or null if cancelled).
+/// Async + spawn_blocking so the modal dialog never blocks the main thread that
+/// is handling this IPC call (a sync command would deadlock the UI).
 #[tauri::command]
-fn pick_vault(app: AppHandle) -> Option<String> {
-    app.dialog()
-        .file()
-        .set_title("Choose or create a folder for your Forma vault")
-        .blocking_pick_folder()
-        .and_then(|p| p.into_path().ok())
-        .map(|p| p.to_string_lossy().to_string())
+async fn pick_vault(app: AppHandle) -> Option<String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        app.dialog()
+            .file()
+            .set_title("Choose or create a folder for your Forma vault")
+            .blocking_pick_folder()
+    })
+    .await
+    .ok()
+    .flatten()
+    .and_then(|p| p.into_path().ok())
+    .map(|p| p.to_string_lossy().to_string())
 }
 
 /// Switch the active vault: persist it and restart the server against it.
