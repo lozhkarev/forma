@@ -1,6 +1,6 @@
 import clsx from 'clsx';
 import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
-import { api } from '../../api';
+import { api, API_BASE } from '../../api';
 import {
   foldRecords,
   type AgentEffort,
@@ -106,7 +106,9 @@ export function ChatPanel() {
   useEffect(() => {
     if (!activeId) return;
     setRecords([]);
-    const source = new EventSource(`/api/agent/sessions/${encodeURIComponent(activeId)}/stream`);
+    const source = new EventSource(
+      `${API_BASE}/api/agent/sessions/${encodeURIComponent(activeId)}/stream`,
+    );
     source.addEventListener('record', (e) => {
       const record = JSON.parse((e as MessageEvent).data) as PersistedRecord;
       setRecords((prev) => [...prev, record]);

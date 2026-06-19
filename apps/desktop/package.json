@@ -1,0 +1,17 @@
+{
+  "name": "@forma/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "build:sidecar": "node scripts/build-sidecar.mjs",
+    "build:web": "VITE_API_BASE=http://localhost:8787 npm run build -w @forma/web",
+    "prebuild:tauri": "npm run build:sidecar && npm run build:web",
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}

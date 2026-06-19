@@ -10,6 +10,13 @@ import type { AgentRun, AgentSummary, RunDetail } from './lib/agents';
 import type { AgentModel, PermissionProfile, PersistedRecord, SessionSummary } from './lib/chat';
 import type { McpConfig, McpServerConfig, SkillInfo } from './lib/settings';
 
+/**
+ * API origin. Empty in the browser dev build (relative `/api/...` go through
+ * Vite's proxy). The Tauri desktop build serves the frontend from a custom
+ * protocol, so it sets VITE_API_BASE to the sidecar server's absolute origin.
+ */
+export const API_BASE = import.meta.env.VITE_API_BASE ?? '';
+
 class ApiError extends Error {
   constructor(
     message: string,
@@ -24,7 +31,7 @@ export function isConflict(err: unknown): boolean {
 }
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, {
+  const res = await fetch(API_BASE + url, {
     headers: { 'Content-Type': 'application/json' },
     ...init,
   });

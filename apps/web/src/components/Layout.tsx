@@ -3,7 +3,7 @@ import { Link, Outlet, useNavigate } from '@tanstack/react-router';
 import clsx from 'clsx';
 import { useEffect, useRef, useState } from 'react';
 import type { SearchHit, VaultEvent } from '@forma/core';
-import { api } from '../api';
+import { api, API_BASE } from '../api';
 import { ChatPanel } from './chat/ChatPanel';
 import { ChatProvider, useChat } from './chat/ChatProvider';
 
@@ -24,7 +24,7 @@ const navItemActive = 'flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[
 function useVaultEvents() {
   const queryClient = useQueryClient();
   useEffect(() => {
-    const source = new EventSource('/api/events');
+    const source = new EventSource(API_BASE + '/api/events');
     source.addEventListener('vault', (e) => {
       const event = JSON.parse((e as MessageEvent).data) as VaultEvent;
       void queryClient.invalidateQueries({ queryKey: ['tree'] });

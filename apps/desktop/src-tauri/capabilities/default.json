@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Core capability for the main window. The Node server is spawned from Rust, so no shell capability is needed on the JS side.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}
