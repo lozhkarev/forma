@@ -121,6 +121,12 @@ class ClaudeAgentSession implements AgentSession {
         includePartialMessages: true,
         permissionMode: 'default',
         canUseTool: (toolName: string, input: unknown) => this.canUseTool(toolName, input),
+        // In a packaged build the SDK is bundled, so it can't resolve its own
+        // native `claude` binary from node_modules — the desktop shell points
+        // FORMA_CLAUDE_BIN at the binary it ships. Unset in dev (SDK default).
+        ...(process.env.FORMA_CLAUDE_BIN
+          ? { pathToClaudeCodeExecutable: process.env.FORMA_CLAUDE_BIN }
+          : {}),
         ...(opts.model ? { model: opts.model } : {}),
         ...(opts.effort ? { effort: opts.effort } : {}),
         ...(opts.maxTurns ? { maxTurns: opts.maxTurns } : {}),

@@ -2,8 +2,9 @@
 src-tauri/target/
 # Tauri codegen
 src-tauri/gen/
-# Built sidecar binary + bundle (produced by scripts/build-sidecar.mjs)
+# Built sidecar binaries + bundle (produced by scripts/build-sidecar.mjs)
 src-tauri/binaries/forma-server-*
+src-tauri/binaries/claude-*
 src-tauri/binaries/server.cjs
 src-tauri/binaries/sea-prep.blob
 src-tauri/binaries/sea-config.json

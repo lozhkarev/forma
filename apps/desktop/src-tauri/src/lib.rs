@@ -1,5 +1,8 @@
+use std::fs;
+use std::path::PathBuf;
 use std::sync::Mutex;
-use tauri::{Manager, RunEvent};
+use tauri::{AppHandle, Manager, RunEvent};
+use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
 
@@ -7,22 +10,151 @@ use tauri_plugin_shell::ShellExt;
 /// killed when the app exits (otherwise it would outlive the window).
 struct ServerProcess(Mutex<Option<CommandChild>>);
 
+#[cfg(target_arch = "aarch64")]
+const NODE_ARCH: &str = "arm64";
+#[cfg(target_arch = "x86_64")]
+const NODE_ARCH: &str = "x64";
+
+/// macOS Keychain service name for stored credentials.
+const KEYRING_SERVICE: &str = "com.forma.app";
+/// Credential keys we look up and the env var each maps to for the server.
+const CREDENTIAL_KEYS: [(&str, &str); 3] = [
+    ("anthropic_base_url", "ANTHROPIC_BASE_URL"),
+    ("anthropic_auth_token", "ANTHROPIC_AUTH_TOKEN"),
+    ("anthropic_api_key", "ANTHROPIC_API_KEY"),
+];
+
+/// Absolute path to the native `claude` binary the agent SDK spawns.
+/// In dev it lives in the repo's node_modules; in a bundled app it's shipped as
+/// a sidecar next to the main executable (Tauri strips the target-triple suffix).
+fn agent_binary() -> PathBuf {
+    #[cfg(debug_assertions)]
+    {
+        let p = PathBuf::from(format!(
+            "{}/../../../node_modules/@anthropic-ai/claude-agent-sdk-darwin-{}/claude",
+            env!("CARGO_MANIFEST_DIR"),
+            NODE_ARCH
+        ));
+        std::fs::canonicalize(&p).unwrap_or(p)
+    }
+    #[cfg(not(debug_assertions))]
+    {
+        std::env::current_exe()
+            .ok()
+            .and_then(|exe| exe.parent().map(|dir| dir.join("claude")))
+            .unwrap_or_else(|| PathBuf::from("claude"))
+    }
+}
+
+fn config_file(app: &AppHandle) -> Option<PathBuf> {
+    app.path().app_config_dir().ok().map(|d| d.join("config.json"))
+}
+
+fn saved_vault(app: &AppHandle) -> Option<String> {
+    let raw = fs::read_to_string(config_file(app)?).ok()?;
+    let json: serde_json::Value = serde_json::from_str(&raw).ok()?;
+    json.get("vault")?.as_str().map(|s| s.to_string())
+}
+
+fn save_vault(app: &AppHandle, vault: &str) {
+    if let Some(path) = config_file(app) {
+        if let Some(dir) = path.parent() {
+            let _ = fs::create_dir_all(dir);
+        }
+        let _ = fs::write(path, serde_json::json!({ "vault": vault }).to_string());
+    }
+}
+
+/// Resolve the vault folder: a saved choice, otherwise prompt once on first run
+/// (falling back to ~/FormaVault if the user cancels). The path is persisted.
+fn resolve_vault(app: &AppHandle) -> String {
+    if let Some(v) = saved_vault(app) {
+        return v;
+    }
+    let default = app
+        .path()
+        .home_dir()
+        .map(|h| h.join("FormaVault"))
+        .unwrap_or_else(|_| PathBuf::from("FormaVault"));
+
+    let picked = app
+        .dialog()
+        .file()
+        .set_title("Choose or create a folder for your Forma vault")
+        .blocking_pick_folder()
+        .and_then(|p| p.into_path().ok());
+
+    let vault = picked.unwrap_or(default);
+    let _ = fs::create_dir_all(&vault);
+    let vault = vault.to_string_lossy().to_string();
+    save_vault(app, &vault);
+    vault
+}
+
+/// Credentials stored in the OS keychain, mapped to server env vars. Empty when
+/// nothing is stored — the server then falls back to env / ~/.claude settings.
+fn keychain_env() -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    for (key, env) in CREDENTIAL_KEYS {
+        if let Ok(entry) = keyring::Entry::new(KEYRING_SERVICE, key) {
+            if let Ok(value) = entry.get_password() {
+                if !value.is_empty() {
+                    out.push((env.to_string(), value));
+                }
+            }
+        }
+    }
+    out
+}
+
+/// Store (or clear, when empty) a credential in the OS keychain. Callable from
+/// the frontend so a settings screen can manage secrets without plaintext files.
+#[tauri::command]
+fn store_credential(key: String, value: String) -> Result<(), String> {
+    let entry = keyring::Entry::new(KEYRING_SERVICE, &key).map_err(|e| e.to_string())?;
+    if value.is_empty() {
+        let _ = entry.delete_credential();
+        Ok(())
+    } else {
+        entry.set_password(&value).map_err(|e| e.to_string())
+    }
+}
+
+#[tauri::command]
+fn credential_present(key: String) -> bool {
+    keyring::Entry::new(KEYRING_SERVICE, &key)
+        .and_then(|e| e.get_password())
+        .map(|v| !v.is_empty())
+        .unwrap_or(false)
+}
+
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(ServerProcess(Mutex::new(None)))
+        .invoke_handler(tauri::generate_handler![store_credential, credential_present])
         .setup(|app| {
-            // Spawn the bundled forma-server (Node SEA) on a fixed port; the
-            // frontend talks to it at http://localhost:8787.
-            let sidecar = app
+            let handle = app.handle();
+            let vault = resolve_vault(handle);
+            let claude_bin = agent_binary();
+
+            let mut sidecar = app
                 .shell()
                 .sidecar("forma-server")
                 .expect("forma-server sidecar not found")
-                .env("FORMA_PORT", "8787");
+                .env("FORMA_PORT", "8787")
+                .env("FORMA_VAULT", vault)
+                .env("FORMA_CLAUDE_BIN", claude_bin.to_string_lossy().to_string());
+            // Inject any keychain-stored credentials (server keeps existing env
+            // if already set, so this just provides them when absent).
+            for (k, v) in keychain_env() {
+                sidecar = sidecar.env(k, v);
+            }
+
             let (mut rx, child) = sidecar.spawn().expect("failed to spawn forma-server");
             app.state::<ServerProcess>().0.lock().unwrap().replace(child);
 
-            // Surface the server's output in the app's stdout for debugging.
             tauri::async_runtime::spawn(async move {
                 while let Some(event) = rx.recv().await {
                     match event {

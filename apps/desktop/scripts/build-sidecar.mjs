@@ -118,6 +118,28 @@ async function buildSea() {
   rmSync(blobPath, { force: true });
   rmSync(seaConfigPath, { force: true });
   console.log(`✓ sidecar ready: ${binPath}`);
+
+  copyAgentBinary(triple);
+}
+
+/**
+ * The agent SDK runs a native `claude` binary (shipped as a per-platform
+ * optional dep). Copy it next to the server as a second Tauri sidecar; the
+ * Rust shell points FORMA_CLAUDE_BIN at it so the bundled SDK can find it.
+ */
+function copyAgentBinary(triple) {
+  const plat = process.platform === 'darwin' ? 'darwin' : 'linux';
+  const arch = process.arch === 'arm64' ? 'arm64' : process.arch === 'x64' ? 'x64' : process.arch;
+  const pkg = `@anthropic-ai/claude-agent-sdk-${plat}-${arch}`;
+  const src = path.join(repoRoot, 'node_modules', pkg, 'claude');
+  if (!existsSync(src)) {
+    throw new Error(`agent native binary not found: ${src} (is ${pkg} installed?)`);
+  }
+  const dest = path.join(outDir, `claude-${triple}`);
+  console.log(`• copying agent binary → ${path.basename(dest)}`);
+  copyFileSync(src, dest);
+  execFileSync('chmod', ['u+rwx', dest]);
+  console.log(`✓ agent binary ready: ${dest}`);
 }
 
 mkdirSync(outDir, { recursive: true });

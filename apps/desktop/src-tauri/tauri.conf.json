@@ -33,6 +33,6 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "externalBin": ["binaries/forma-server"]
+    "externalBin": ["binaries/forma-server", "binaries/claude"]
   }
 }
