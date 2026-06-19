@@ -1,4 +1,5 @@
 import { Extension } from '@tiptap/core';
+import { PluginKey } from '@tiptap/pm/state';
 import Suggestion, { type SuggestionOptions } from '@tiptap/suggestion';
 import { api } from '../../api';
 
@@ -130,6 +131,7 @@ export const WikiLinkSuggestion = Extension.create({
     return [
       Suggestion<DocItem>({
         editor: this.editor,
+        pluginKey: new PluginKey('wikiLinkSuggestion'),
         char: '[[',
         command: ({ editor, range, props }) => {
           // Trailing space ends the suggestion match so the inserted `[[…]]`

@@ -54,6 +54,9 @@ body {
 
 /* Редактор. min-height задаётся только редактору документа (класс ниже),
    иначе он распирал бы каждый MarkdownView-блок в чате/журнале. */
+.ProseMirror {
+  caret-color: var(--color-ink);
+}
 .ProseMirror:focus {
   outline: none;
 }
@@ -89,14 +92,38 @@ body {
 }
 .prose ul[data-type='taskList'] {
   list-style: none;
-  padding-left: 0.25rem;
+  /* match the bullet/ordered list indent so the drag handle sits the same
+     distance from every list item (no extra-far handle on checkboxes). */
+  padding-left: 1.625em;
 }
 .prose ul[data-type='taskList'] li {
   display: flex;
-  gap: 0.5rem;
+  align-items: flex-start;
+  gap: 0.55rem;
 }
 .prose ul[data-type='taskList'] li > label {
-  margin-top: 0.3rem;
+  margin: 0;
+  flex: 0 0 auto;
+  user-select: none;
+}
+.prose ul[data-type='taskList'] li > label input[type='checkbox'] {
+  margin: 0;
+  margin-top: 0.28rem; /* align checkbox with the first line of text */
+  width: 1rem;
+  height: 1rem;
+  cursor: pointer;
+  accent-color: var(--color-accent);
+}
+.prose ul[data-type='taskList'] li > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.prose ul[data-type='taskList'] li > div > p {
+  margin: 0;
+}
+.prose ul[data-type='taskList'] li[data-checked='true'] > div {
+  color: var(--color-done);
+  text-decoration: line-through;
 }
 
 mark {
@@ -114,4 +141,141 @@ mark {
   background: var(--color-accent-soft);
   border-radius: 2px;
   box-shadow: 0 0 0 1px var(--color-accent-border);
+}
+
+/* Per-item drag handle. A transparent bridge fills the gutter gap between the
+   handle and the node so moving the cursor across it never hits a dead zone
+   (the plugin hides the handle when the pointer is over no node). The bridge
+   stops just short of the node so it can't swallow clicks on its content. */
+.editor-drag-handle {
+  position: relative;
+}
+.editor-drag-handle::after {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: 100%;
+  width: 20px;
+  height: calc(100% + 8px);
+}
+
+/* Toggle (details) block — borderless, Notion-style */
+.ProseMirror [data-type='details'] {
+  display: flex;
+  gap: 0.3rem;
+  margin: 0.25rem 0;
+}
+.ProseMirror [data-type='details'] > button {
+  flex: 0 0 auto;
+  width: 1.1rem;
+  height: 1.5rem;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  color: var(--color-faint);
+  line-height: 1;
+}
+.ProseMirror [data-type='details'] > button::before {
+  content: '▸';
+}
+.ProseMirror [data-type='details'].is-open > button::before,
+.ProseMirror [data-type='details'][open] > button::before {
+  content: '▾';
+}
+.ProseMirror [data-type='details'] > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.ProseMirror [data-type='details'] summary {
+  font-weight: 600;
+  list-style: none;
+  outline: none;
+}
+.ProseMirror [data-type='details'] summary::-webkit-details-marker {
+  display: none;
+}
+.ProseMirror [data-type='detailsContent'] > * {
+  margin: 0.1rem 0;
+}
+/* Collapsed toggle: keep its body hidden (the extension sets [hidden]). */
+.ProseMirror [data-type='detailsContent'][hidden] {
+  display: none;
+}
+
+/* Code blocks: light surface so the syntax theme reads well */
+.prose pre {
+  background: #f6f5f2;
+  color: var(--color-ink);
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+}
+.prose pre code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  font-size: 0.85em;
+}
+
+/* lowlight (highlight.js) — compact light theme on the warm palette */
+.hljs-comment,
+.hljs-quote {
+  color: #9b988f;
+  font-style: italic;
+}
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-built_in,
+.hljs-name,
+.hljs-tag {
+  color: #2c6fdb;
+}
+.hljs-string,
+.hljs-attr,
+.hljs-doctag,
+.hljs-addition {
+  color: #2e8b57;
+}
+.hljs-number,
+.hljs-literal,
+.hljs-variable,
+.hljs-attribute,
+.hljs-template-variable {
+  color: #b8651b;
+}
+.hljs-title,
+.hljs-section,
+.hljs-selector-id {
+  color: #6f42c1;
+}
+.hljs-type,
+.hljs-class .hljs-title,
+.hljs-deletion {
+  color: #c0392b;
+}
+.hljs-symbol,
+.hljs-bullet,
+.hljs-link {
+  color: #2c6fdb;
+}
+.hljs-emphasis {
+  font-style: italic;
+}
+.hljs-strong {
+  font-weight: 600;
+}
+
+/* Empty-block placeholders (To-do, List, Heading, command hint…).
+   Absolutely positioned so they never shift the block's real layout. */
+.ProseMirror .is-empty {
+  position: relative;
+}
+.ProseMirror .is-empty::before {
+  content: attr(data-placeholder);
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--color-faintest);
+  pointer-events: none;
+  white-space: nowrap;
 }

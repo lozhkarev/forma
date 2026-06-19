@@ -1,18 +1,24 @@
+import { offset } from '@floating-ui/dom';
 import { useQueryClient } from '@tanstack/react-query';
 import Color from '@tiptap/extension-color';
-import Link from '@tiptap/extension-link';
+import { Details, DetailsContent, DetailsSummary } from '@tiptap/extension-details';
+import { DragHandle } from '@tiptap/extension-drag-handle-react';
+import Placeholder from '@tiptap/extension-placeholder';
 import TaskItem from '@tiptap/extension-task-item';
 import TaskList from '@tiptap/extension-task-list';
-import TextStyle from '@tiptap/extension-text-style';
+import { TextStyle } from '@tiptap/extension-text-style';
 import { EditorContent, useEditor, type Editor as TiptapEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { Markdown } from 'tiptap-markdown';
 import type { DocFile } from '@forma/core';
 import { api, isConflict } from '../api';
 import { Backlinks } from './Backlinks';
 import { useChat } from './chat/ChatProvider';
+import { CodeBlock } from './editor/codeBlock';
+import { DetailsKeymap } from './editor/detailsKeymap';
 import { SelectionHighlight, selectionHighlightKey } from './editor/selectionHighlight';
+import { SlashMenu } from './editor/slashMenu';
 import { WikiLinkSuggestion } from './editor/wikiLinkSuggestion';
 import { Properties } from './Properties';
 
@@ -28,6 +34,28 @@ interface Props {
   doc: DocFile;
   onDeleted: () => void;
 }
+
+/**
+ * Per-item drag handle. `nested` (TipTap 3) makes the handle target the
+ * individual list item / task item / blockquote under the cursor instead of
+ * the whole consecutive list, so each checkbox can be dragged on its own.
+ */
+const DocDragHandle = memo(function DocDragHandle({ editor }: { editor: TiptapEditor }) {
+  return (
+    <DragHandle
+      editor={editor}
+      nested
+      // Park the handle in the left gutter so it clears list bullets / numbers
+      // (which sit to the left of the item's content box) instead of overlapping.
+      computePositionConfig={{ placement: 'left-start', middleware: [offset(22)] }}
+      className="editor-drag-handle flex h-6 w-4 cursor-grab items-center justify-center rounded text-faintest hover:bg-active active:cursor-grabbing"
+    >
+      <span aria-hidden className="select-none text-base leading-none">
+        ⠿
+      </span>
+    </DragHandle>
+  );
+});
 
 /**
  * Редактор документа. Источник истины — markdown: TipTap парсит body
@@ -46,20 +74,60 @@ export function Editor({ doc, onDeleted }: Props) {
 
   const editor = useEditor({
     extensions: [
-      StarterKit,
-      Link.configure({ openOnClick: false }),
+      StarterKit.configure({ codeBlock: false, link: { openOnClick: false } }),
+      CodeBlock,
       TaskList,
       TaskItem.configure({ nested: true }),
       TextStyle,
       Color,
+      Details.configure({ persist: true }),
+      DetailsSummary,
+      DetailsContent,
+      DetailsKeymap,
+      Placeholder.configure({
+        showOnlyCurrent: false,
+        includeChildren: true,
+        placeholder: ({ node, pos, editor }) => {
+          const name = node.type.name;
+          if (name === 'heading') return `Heading ${node.attrs.level}`;
+          if (name === 'detailsSummary') return 'Toggle';
+          if (name !== 'paragraph') return '';
+          let parent = '';
+          try {
+            parent = editor.state.doc.resolve(pos).parent.type.name;
+          } catch {
+            /* position not resolvable mid-transaction */
+          }
+          if (parent === 'taskItem') return 'To-do';
+          if (parent === 'listItem') return 'List';
+          if (parent === 'blockquote') return 'Quote';
+          const sel = editor.state.selection;
+          const focused = sel.empty && sel.$from.parent === node;
+          return focused ? 'Press ‘space’ for AI or ‘/’ for commands' : '';
+        },
+      }),
       Markdown.configure({ html: true, linkify: true, transformPastedText: true }),
       WikiLinkSuggestion,
       SelectionHighlight,
+      SlashMenu,
     ],
     content: doc.body,
     editorProps: {
       attributes: {
         class: 'prose prose-stone max-w-none px-1 py-4 min-h-[16rem]',
+      },
+      // Tab must never blur the editor. In lists it nests the item; elsewhere
+      // (paragraphs, headings, code) it inserts spaces.
+      handleKeyDown: (view, event) => {
+        if (event.key !== 'Tab' || event.shiftKey) return false;
+        const { $from } = view.state.selection;
+        for (let d = $from.depth; d > 0; d--) {
+          const name = $from.node(d).type.name;
+          if (name === 'listItem' || name === 'taskItem') return false; // let it nest
+        }
+        event.preventDefault();
+        view.dispatch(view.state.tr.insertText('  '));
+        return true;
       },
     },
     onUpdate: () => setDirty(true),
@@ -198,6 +266,7 @@ export function Editor({ doc, onDeleted }: Props) {
         />
       </div>
       <div className="flex-1 overflow-auto bg-surface px-6 pb-10">
+        {editor && <DocDragHandle editor={editor} />}
         <EditorContent editor={editor} className="mx-auto max-w-3xl" />
         <Backlinks path={loaded.path} />
       </div>
