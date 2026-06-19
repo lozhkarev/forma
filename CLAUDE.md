@@ -14,9 +14,14 @@ npm run dev            # сервер :8787 + веб :5173 (vault в ./vault)
 npm run typecheck      # tsc во всех пакетах — гонять после правок
 npm run build          # прод-сборка (web: tsc + vite build)
 npm run dev:server     # только API-сервер
+npm test               # vitest (юнит-тесты core + VaultService)
+npm run test:watch     # vitest в watch-режиме
 ```
 
-Тестов пока нет (план: vitest, см. PLAN.md «Техдолг»).
+Тесты: vitest, файлы `*.test.ts` рядом с кодом. Покрыты чистые модули
+`packages/core` (frontmatter, kind, links) и `VaultService` (path
+traversal, оптимистичная блокировка, атомарная запись) на временном vault.
+Веб (TipTap/React) пока не покрыт — см. PLAN.md «Техдолг».
 
 ## Структура
 

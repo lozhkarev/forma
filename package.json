@@ -12,10 +12,13 @@
     "dev:server": "FORMA_VAULT=$(pwd)/vault npm run dev -w @forma/server",
     "dev:web": "npm run dev -w @forma/web",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "build": "npm run build --workspaces --if-present"
+    "build": "npm run build --workspaces --if-present",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
-    "concurrently": "^9.1.0"
+    "concurrently": "^9.1.0",
+    "vitest": "^4.1.9"
   },
   "engines": {
     "node": ">=24"
