@@ -113,6 +113,14 @@ async function main(): Promise<void> {
   };
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
+
+  // When spawned by the desktop shell, exit as soon as the parent goes away
+  // (its stdin pipe closes) so we never orphan the server on a crash / force-quit.
+  if (process.env.FORMA_SIDECAR) {
+    process.stdin.on('close', () => void shutdown());
+    process.stdin.on('end', () => void shutdown());
+    process.stdin.resume();
+  }
 }
 
 void main();

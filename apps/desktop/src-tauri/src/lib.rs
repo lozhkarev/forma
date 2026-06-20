@@ -120,6 +120,7 @@ fn build_and_spawn(app: &AppHandle, vault: &str) -> Result<(), String> {
         .map_err(|e| e.to_string())?
         .env("FORMA_PORT", "8787")
         .env("FORMA_VAULT", vault)
+        .env("FORMA_SIDECAR", "1")
         .env("FORMA_CLAUDE_BIN", claude_bin.to_string_lossy().to_string());
     for (k, v) in keychain_env() {
         sidecar = sidecar.env(k, v);
