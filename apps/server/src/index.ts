@@ -14,6 +14,7 @@ import {
 } from './config.js';
 import type { VaultEvent } from '@forma/core';
 import { EventTrigger } from './event-trigger.js';
+import { GitService } from './git.js';
 import { IndexService } from './indexer.js';
 import { AgentRuntime } from './runtime.js';
 import { Scheduler } from './scheduler.js';
@@ -28,6 +29,7 @@ interface Workspace {
   runtime: AgentRuntime;
   scheduler: Scheduler;
   eventTrigger: EventTrigger;
+  git: GitService;
   app: Hono;
 }
 
@@ -40,6 +42,9 @@ async function buildWorkspace(root: string, controller: VaultController): Promis
   console.log(`[forma] индекс: ${indexed} документов (${root})`);
   indexer.startWatcher();
 
+  const git = new GitService(root);
+  await git.ensureRepo();
+
   const runtime = new AgentRuntime(root, {
     model: AGENT_MODEL,
     maxConcurrentTurns: MAX_CONCURRENT_TURNS,
@@ -47,7 +52,7 @@ async function buildWorkspace(root: string, controller: VaultController): Promis
     maxCostUsd: DEFAULT_MAX_COST_USD,
   });
 
-  const agents = new AgentService(vault, runtime);
+  const agents = new AgentService(vault, runtime, git);
   const reaped = await agents.reapStaleRuns();
   if (reaped > 0) console.log(`[forma] помечено прерванными зависших запусков: ${reaped}`);
 
@@ -64,12 +69,14 @@ async function buildWorkspace(root: string, controller: VaultController): Promis
       scheduler.scheduleReload();
       eventTrigger.scheduleReload();
     }
+    // Snapshot edits (manual, external, or agent chat) into git, debounced.
+    git.scheduleCommit('vault: edits');
   });
 
   const settings = new SettingsService(vault);
   const app = createApi(vault, indexer, runtime, agents, scheduler, settings, controller);
 
-  return { root, indexer, runtime, scheduler, eventTrigger, app };
+  return { root, indexer, runtime, scheduler, eventTrigger, git, app };
 }
 
 async function teardownWorkspace(ws: Workspace): Promise<void> {
@@ -77,6 +84,7 @@ async function teardownWorkspace(ws: Workspace): Promise<void> {
   ws.eventTrigger.stop();
   await ws.runtime.stop();
   await ws.indexer.stop();
+  await ws.git.stop();
 }
 
 async function main(): Promise<void> {

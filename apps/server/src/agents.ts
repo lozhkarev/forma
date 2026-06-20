@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { agentFromDoc, type AgentDefinition } from '@forma/core';
 import type { AgentEvent } from '@forma/agent';
+import type { GitService } from './git.js';
 import type { AgentRuntime } from './runtime.js';
 import { VaultError, type VaultService } from './vault.js';
 
@@ -51,6 +52,7 @@ export class AgentService {
   constructor(
     private vault: VaultService,
     private runtime: AgentRuntime,
+    private git?: GitService,
   ) {
     this.runsDir = path.join(vault.root, '.forma', 'runs');
   }
@@ -157,6 +159,8 @@ export class AgentService {
       });
     } finally {
       this.running.delete(def.name);
+      // Snapshot whatever the run wrote, with a labelled commit.
+      void this.git?.commitAll(`agent(${def.name}): ${run.trigger}`);
     }
   }
 
