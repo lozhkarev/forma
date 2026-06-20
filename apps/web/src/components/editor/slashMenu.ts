@@ -43,6 +43,7 @@ function createRenderer(): SuggestionOptions<SlashItem>['render'] {
       }
       el.style.display = 'block';
       el.innerHTML = '';
+      let selectedBtn: HTMLButtonElement | null = null;
       items.forEach((item, i) => {
         const b = document.createElement('button');
         b.className = `flex w-full items-center gap-2.5 px-2 py-1.5 text-left ${
@@ -55,8 +56,11 @@ function createRenderer(): SuggestionOptions<SlashItem>['render'] {
           e.preventDefault();
           pick?.(item);
         });
+        if (i === selected) selectedBtn = b;
         el!.appendChild(b);
       });
+      // Keep the highlighted item visible during arrow-key navigation.
+      (selectedBtn as HTMLButtonElement | null)?.scrollIntoView({ block: 'nearest' });
     };
 
     const place = (rect: DOMRect | null | undefined) => {

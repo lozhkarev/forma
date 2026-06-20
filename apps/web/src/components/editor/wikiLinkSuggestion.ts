@@ -30,6 +30,7 @@ function createRenderer(): SuggestionOptions<DocItem>['render'] {
       }
       el.style.display = 'block';
       el.innerHTML = '';
+      let selectedBtn: HTMLButtonElement | null = null;
       items.forEach((item, i) => {
         const b = document.createElement('button');
         b.className = `block w-full px-3 py-1.5 text-left text-sm ${
@@ -40,8 +41,10 @@ function createRenderer(): SuggestionOptions<DocItem>['render'] {
           e.preventDefault();
           pick?.(item);
         });
+        if (i === selected) selectedBtn = b;
         el!.appendChild(b);
       });
+      (selectedBtn as HTMLButtonElement | null)?.scrollIntoView({ block: 'nearest' });
     };
 
     const place = (rect: DOMRect | null | undefined) => {
