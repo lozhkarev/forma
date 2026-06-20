@@ -1,25 +1,14 @@
 import { offset } from '@floating-ui/dom';
 import { useQueryClient } from '@tanstack/react-query';
-import Color from '@tiptap/extension-color';
-import { Details, DetailsContent, DetailsSummary } from '@tiptap/extension-details';
 import { DragHandle } from '@tiptap/extension-drag-handle-react';
-import Placeholder from '@tiptap/extension-placeholder';
-import TaskItem from '@tiptap/extension-task-item';
-import TaskList from '@tiptap/extension-task-list';
-import { TextStyle } from '@tiptap/extension-text-style';
 import { EditorContent, useEditor, type Editor as TiptapEditor } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
 import { memo, useEffect, useState } from 'react';
-import { Markdown } from 'tiptap-markdown';
 import type { DocFile } from '@forma/core';
 import { api, isConflict } from '../api';
 import { Backlinks } from './Backlinks';
 import { useChat } from './chat/ChatProvider';
-import { CodeBlock } from './editor/codeBlock';
-import { DetailsKeymap } from './editor/detailsKeymap';
-import { SelectionHighlight, selectionHighlightKey } from './editor/selectionHighlight';
-import { SlashMenu } from './editor/slashMenu';
-import { WikiLinkSuggestion } from './editor/wikiLinkSuggestion';
+import { editorExtensions } from './editor/extensions';
+import { selectionHighlightKey } from './editor/selectionHighlight';
 import { Properties } from './Properties';
 
 function getMarkdown(editor: TiptapEditor): string {
@@ -73,44 +62,7 @@ export function Editor({ doc, onDeleted }: Props) {
   const [selectionText, setSelectionText] = useState('');
 
   const editor = useEditor({
-    extensions: [
-      StarterKit.configure({ codeBlock: false, link: { openOnClick: false } }),
-      CodeBlock,
-      TaskList,
-      TaskItem.configure({ nested: true }),
-      TextStyle,
-      Color,
-      Details.configure({ persist: true }),
-      DetailsSummary,
-      DetailsContent,
-      DetailsKeymap,
-      Placeholder.configure({
-        showOnlyCurrent: false,
-        includeChildren: true,
-        placeholder: ({ node, pos, editor }) => {
-          const name = node.type.name;
-          if (name === 'heading') return `Heading ${node.attrs.level}`;
-          if (name === 'detailsSummary') return 'Toggle';
-          if (name !== 'paragraph') return '';
-          let parent = '';
-          try {
-            parent = editor.state.doc.resolve(pos).parent.type.name;
-          } catch {
-            /* position not resolvable mid-transaction */
-          }
-          if (parent === 'taskItem') return 'To-do';
-          if (parent === 'listItem') return 'List';
-          if (parent === 'blockquote') return 'Quote';
-          const sel = editor.state.selection;
-          const focused = sel.empty && sel.$from.parent === node;
-          return focused ? 'Press ‘space’ for AI or ‘/’ for commands' : '';
-        },
-      }),
-      Markdown.configure({ html: true, linkify: true, transformPastedText: true }),
-      WikiLinkSuggestion,
-      SelectionHighlight,
-      SlashMenu,
-    ],
+    extensions: editorExtensions(),
     content: doc.body,
     editorProps: {
       attributes: {
