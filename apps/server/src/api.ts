@@ -1,3 +1,6 @@
+import fsp from 'node:fs/promises';
+import os from 'node:os';
+import nodePath from 'node:path';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { streamSSE } from 'hono/streaming';
@@ -60,6 +63,36 @@ export function createApi(
   app.get('/api/health', (c) => c.json({ ok: true, vault: vault.root }));
 
   app.get('/api/vault', (c) => c.json({ path: vaultController.current() }));
+
+  // Filesystem folder browser (host machine) — powers the in-app folder picker
+  // used to choose a vault, consistently in the browser and the desktop app.
+  app.get('/api/fs/dirs', async (c) => {
+    const q = c.req.query('path');
+    const base = q && q.trim() ? nodePath.resolve(q) : os.homedir();
+    let entries;
+    try {
+      entries = await fsp.readdir(base, { withFileTypes: true });
+    } catch {
+      throw new VaultError(`нельзя прочитать каталог: ${base}`, 400);
+    }
+    const dirs = entries
+      .filter((e) => e.isDirectory() && !e.name.startsWith('.'))
+      .map((e) => ({ name: e.name, path: nodePath.join(base, e.name) }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    const parent = nodePath.dirname(base);
+    return c.json({ path: base, parent: parent === base ? null : parent, dirs });
+  });
+
+  app.post('/api/fs/mkdir', async (c) => {
+    const { path: p, name } = await c.req
+      .json<{ path?: string; name?: string }>()
+      .catch(() => ({ path: undefined, name: undefined }));
+    if (!p || !name || !name.trim()) throw new VaultError('нужны path и name', 400);
+    if (/[/\\]/.test(name)) throw new VaultError('имя папки не должно содержать /', 400);
+    const abs = nodePath.join(nodePath.resolve(p), name.trim());
+    await fsp.mkdir(abs, { recursive: true });
+    return c.json({ path: abs });
+  });
 
   // Switch the active vault (works in both the browser and the desktop app).
   // Rebuilds all services for the new root; clients should reload afterwards.

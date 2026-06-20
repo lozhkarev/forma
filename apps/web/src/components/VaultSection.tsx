@@ -1,56 +1,37 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { desktop, isDesktop } from '../lib/desktop';
-
-const inputClass =
-  'w-full rounded-lg border border-line bg-surface px-3 py-1.5 text-sm font-mono focus:border-accent-border focus:outline-none';
+import { FolderPicker } from './FolderPicker';
 
 /**
- * Switch the active vault. Works in both the browser and the desktop app: the
- * server re-inits all services for the new root at runtime (no process restart).
- * The desktop additionally persists the choice for the next launch and offers a
- * native folder picker.
+ * Switch the active vault. Same UI in the browser and the desktop app: an
+ * in-app folder browser (the server lists the host filesystem). The server
+ * re-inits all services for the new root at runtime — no process restart.
  */
 export function VaultSection() {
   const [current, setCurrent] = useState('');
-  const [input, setInput] = useState('');
+  const [picking, setPicking] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    void api.vault.get().then(({ path }) => {
-      setCurrent(path);
-      setInput(path);
-    });
+    void api.vault.get().then(({ path }) => setCurrent(path));
   }, []);
 
   const switchTo = async (target: string) => {
-    const path = target.trim();
-    if (!path || path === current || busy) return;
+    setPicking(false);
+    if (!target || target === current || busy) return;
     setError(null);
     setBusy(true);
     try {
       // Persist for the next desktop launch (the running server switches below).
-      if (isDesktop) await desktop.rememberVault(path);
-      await api.vault.switch(path);
-      // The server swapped its workspace with no downtime — reload so every view
+      if (isDesktop) await desktop.rememberVault(target);
+      await api.vault.switch(target);
+      // No downtime — the server swapped its workspace; reload so every view
       // re-fetches and the event stream reconnects against the new vault.
       window.location.reload();
     } catch (e) {
       setBusy(false);
-      setError(e instanceof Error ? e.message : String(e));
-    }
-  };
-
-  const browse = async () => {
-    setError(null);
-    try {
-      const picked = await desktop.pickVault();
-      if (picked) {
-        setInput(picked);
-        await switchTo(picked);
-      }
-    } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
   };
@@ -66,37 +47,27 @@ export function VaultSection() {
         <p className="mb-3 text-xs text-faintest">
           The folder Forma reads and writes. Switching re-indexes against the new location.
         </p>
-        {isDesktop ? (
-          <div className="flex items-center gap-3">
-            <code className="min-w-0 flex-1 truncate rounded-lg bg-chip px-3 py-1.5 text-xs text-muted">
-              {current || '—'}
-            </code>
-            <button
-              onClick={browse}
-              disabled={busy}
-              className="shrink-0 rounded-lg bg-accent px-3 py-1.5 text-sm text-white hover:bg-accent-strong disabled:bg-line-strong"
-            >
-              {busy ? 'Switching…' : 'Choose folder…'}
-            </button>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2">
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="/absolute/path/to/vault"
-              className={inputClass}
-            />
-            <button
-              onClick={() => switchTo(input)}
-              disabled={busy || !input.trim() || input.trim() === current}
-              className="shrink-0 rounded-lg bg-accent px-3 py-1.5 text-sm text-white hover:bg-accent-strong disabled:bg-line-strong"
-            >
-              {busy ? 'Switching…' : 'Switch'}
-            </button>
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          <code className="min-w-0 flex-1 truncate rounded-lg bg-chip px-3 py-1.5 text-xs text-muted">
+            {current || '—'}
+          </code>
+          <button
+            onClick={() => setPicking(true)}
+            disabled={busy}
+            className="shrink-0 rounded-lg bg-accent px-3 py-1.5 text-sm text-white hover:bg-accent-strong disabled:bg-line-strong"
+          >
+            {busy ? 'Switching…' : 'Change…'}
+          </button>
+        </div>
       </div>
+
+      {picking && (
+        <FolderPicker
+          initialPath={current}
+          onSelect={(p) => void switchTo(p)}
+          onClose={() => setPicking(false)}
+        />
+      )}
     </section>
   );
 }

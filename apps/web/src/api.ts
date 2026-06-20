@@ -54,6 +54,18 @@ export const api = {
       }),
   },
 
+  fs: {
+    dirs: (path?: string) =>
+      request<{ path: string; parent: string | null; dirs: { name: string; path: string }[] }>(
+        `/api/fs/dirs${path ? `?path=${encodeURIComponent(path)}` : ''}`,
+      ),
+    mkdir: (path: string, name: string) =>
+      request<{ path: string }>('/api/fs/mkdir', {
+        method: 'POST',
+        body: JSON.stringify({ path, name }),
+      }),
+  },
+
   doc: (path: string) => request<DocFile>(`/api/doc?path=${encodeURIComponent(path)}`),
 
   createDoc: (path: string, frontmatter: Frontmatter, body: string) =>

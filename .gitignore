@@ -4,3 +4,4 @@ vault/
 .env
 *.log
 .DS_Store
+/vaul/
