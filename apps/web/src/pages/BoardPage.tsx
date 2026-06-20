@@ -20,6 +20,7 @@ function BoardCard({ task }: { task: TaskRow }) {
       <Link
         to="/docs"
         search={{ path: task.path }}
+        draggable={false}
         className={clsx(
           'block text-[13.5px] leading-snug hover:underline',
           closed ? 'text-done line-through' : 'text-body',
