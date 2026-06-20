@@ -83,6 +83,12 @@ export const api = {
   deleteDoc: (path: string) =>
     request<{ ok: boolean }>(`/api/doc?path=${encodeURIComponent(path)}`, { method: 'DELETE' }),
 
+  moveDoc: (from: string, to: string) =>
+    request<{ doc: DocFile; rewritten: string[] }>('/api/doc/move', {
+      method: 'POST',
+      body: JSON.stringify({ from, to }),
+    }),
+
   tasks: (filter: { status?: string; project?: string } = {}) => {
     const params = new URLSearchParams();
     if (filter.status) params.set('status', filter.status);

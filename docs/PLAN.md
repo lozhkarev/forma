@@ -386,7 +386,9 @@ Tauri 2-обёртка (`apps/desktop`): web как фронт, Node-server ка
    сейчас профиль фиксируется при создании чата.
 2. **Git-интеграция vault** (simple-git): `git init` при bootstrap,
    автокоммит после агентских сессий и батч-коммиты ручных правок.
-3. Rename/move документов (API + UI), создание из дерева по правому клику.
+3. ✅ Rename/move документов: `POST /api/doc/move` + `VaultService.moveDoc`,
+   переписывание входящих ссылок (`[[wiki]]` и `[md](path)`) в бэклинках,
+   контекстное меню в дереве (rename/move, delete, new here). Reindex обоих.
 4. Kanban-доска внутри проекта (сейчас только список задач с фильтром).
 5. Code-splitting (manualChunks для TipTap, ~880KB бандл) и апгрейд на
    Vite 7 (закрывает dev-only advisory esbuild).

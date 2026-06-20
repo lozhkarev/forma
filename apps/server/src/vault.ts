@@ -129,6 +129,31 @@ export class VaultService {
     return this.readDoc(relPath);
   }
 
+  /** Rename or move a document. Fails if the source is missing (404) or the
+   *  destination already exists (409). */
+  async moveDoc(from: string, to: string): Promise<DocFile> {
+    if (!to.endsWith('.md')) throw new VaultError('поддерживаются только .md файлы', 400);
+    const absFrom = this.resolve(from);
+    const absTo = this.resolve(to);
+    if (absFrom === absTo) return this.readDoc(to);
+    try {
+      await fs.stat(absFrom);
+    } catch {
+      throw new VaultError(`документ не найден: ${from}`, 404);
+    }
+    let destExists = false;
+    try {
+      await fs.stat(absTo);
+      destExists = true;
+    } catch {
+      /* свободно */
+    }
+    if (destExists) throw new VaultError(`уже существует: ${to}`, 409);
+    await fs.mkdir(path.dirname(absTo), { recursive: true });
+    await fs.rename(absFrom, absTo);
+    return this.readDoc(to);
+  }
+
   async deleteDoc(relPath: string): Promise<void> {
     const abs = this.resolve(relPath);
     try {

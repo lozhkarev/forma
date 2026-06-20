@@ -101,6 +101,32 @@ describe('mustNotExist', () => {
   });
 });
 
+describe('moveDoc', () => {
+  it('renames/moves a doc and reads it back at the new path', async () => {
+    await vault.writeDoc('wiki/a.md', { x: 1 }, 'body\n');
+    const moved = await vault.moveDoc('wiki/a.md', 'notes/b.md');
+    expect(moved.path).toBe('notes/b.md');
+    expect(moved.body).toBe('body\n');
+    expect(await vault.exists('wiki/a.md')).toBe(false);
+    expect(await vault.exists('notes/b.md')).toBe(true);
+  });
+
+  it('throws 404 when the source is missing', async () => {
+    expect(await statusOf(() => vault.moveDoc('nope.md', 'x.md'))).toBe(404);
+  });
+
+  it('throws 409 when the destination already exists', async () => {
+    await vault.writeDoc('a.md', {}, 'a\n');
+    await vault.writeDoc('b.md', {}, 'b\n');
+    expect(await statusOf(() => vault.moveDoc('a.md', 'b.md'))).toBe(409);
+  });
+
+  it('rejects a non-.md destination with 400', async () => {
+    await vault.writeDoc('a.md', {}, 'a\n');
+    expect(await statusOf(() => vault.moveDoc('a.md', 'b.txt'))).toBe(400);
+  });
+});
+
 describe('deleteDoc', () => {
   it('deletes an existing file', async () => {
     await vault.writeDoc('gone.md', {}, 'x\n');

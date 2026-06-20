@@ -1,20 +1,28 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useState } from 'react';
-import { api } from '../api';
+import { api, isConflict } from '../api';
 import { Editor } from '../components/Editor';
 import { FileTree } from '../components/FileTree';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-function NewDocForm({ onCreated }: { onCreated: (path: string) => void }) {
-  const [open, setOpen] = useState(false);
-  const [path, setPath] = useState('');
+function NewDocForm({
+  initialPath = '',
+  autoOpen = false,
+  onCreated,
+}: {
+  initialPath?: string;
+  autoOpen?: boolean;
+  onCreated: (path: string) => void;
+}) {
+  const [open, setOpen] = useState(autoOpen);
+  const [path, setPath] = useState(initialPath);
   const [error, setError] = useState<string | null>(null);
 
   const create = async () => {
     let rel = path.trim();
-    if (rel === '') return;
+    if (rel === '' || rel.endsWith('/')) return;
     if (!rel.endsWith('.md')) rel += '.md';
     // в местах для задач сразу создаём задачу
     const isTask = rel.startsWith('inbox/') || /^projects\/[^/]+\/tasks\//.test(rel);
@@ -63,20 +71,64 @@ function NewDocForm({ onCreated }: { onCreated: (path: string) => void }) {
 export function DocsPage() {
   const { path } = useSearch({ from: '/docs' });
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const tree = useQuery({ queryKey: ['tree'], queryFn: api.tree });
   const doc = useQuery({
     queryKey: ['doc', path],
     queryFn: () => api.doc(path!),
     enabled: Boolean(path),
   });
+  // null = the "+ New document" button; a string = create form seeded with a dir.
+  const [seed, setSeed] = useState<string | null>(null);
 
   const select = (p: string) => void navigate({ to: '/docs', search: { path: p } });
+  const refreshTree = () => void queryClient.invalidateQueries({ queryKey: ['tree'] });
+
+  const move = async (from: string, to: string) => {
+    let dest = to.trim();
+    if (!dest.endsWith('.md')) dest += '.md';
+    if (dest === from) return;
+    try {
+      await api.moveDoc(from, dest);
+      refreshTree();
+      if (path === from) select(dest);
+    } catch (e) {
+      window.alert(
+        isConflict(e) ? `A document already exists at ${dest}` : `Could not move: ${(e as Error).message}`,
+      );
+    }
+  };
+
+  const remove = async (target: string) => {
+    if (!window.confirm(`Delete ${target}?`)) return;
+    await api.deleteDoc(target);
+    refreshTree();
+    if (path === target) void navigate({ to: '/docs', search: {} });
+  };
 
   return (
     <div className="flex h-full">
       <div className="flex w-64 shrink-0 flex-col overflow-auto border-r border-line bg-surface-2/50 py-2">
-        <NewDocForm onCreated={select} />
-        {tree.data && <FileTree node={tree.data} selected={path} onSelect={select} />}
+        <NewDocForm
+          key={seed ?? 'new'}
+          initialPath={seed ? `${seed}/` : ''}
+          autoOpen={seed !== null}
+          onCreated={(p) => {
+            setSeed(null);
+            refreshTree();
+            select(p);
+          }}
+        />
+        {tree.data && (
+          <FileTree
+            node={tree.data}
+            selected={path}
+            onSelect={select}
+            onMove={move}
+            onDelete={remove}
+            onCreateIn={setSeed}
+          />
+        )}
       </div>
       <div className="min-w-0 flex-1">
         {!path && (

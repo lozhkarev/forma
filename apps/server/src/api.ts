@@ -4,7 +4,7 @@ import nodePath from 'node:path';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { streamSSE } from 'hono/streaming';
-import type { Frontmatter, VaultEvent } from '@forma/core';
+import { buildNameIndex, resolveLink, type Frontmatter, type VaultEvent } from '@forma/core';
 import { createAgentRoutes } from './agent-api.js';
 import { createAgentDefRoutes } from './agents-api.js';
 import type { AgentService } from './agents.js';
@@ -26,6 +26,76 @@ interface PatchTaskBody {
   path: string;
   /** Частичное обновление frontmatter; значение null удаляет ключ. */
   patch: Record<string, unknown>;
+}
+
+/**
+ * Rewrite inbound links so references survive a rename/move. Must run *before*
+ * the file is moved (links still resolve to `from`). Rewrites both `[[wiki]]`
+ * (to the new base name, or full path on a name collision) and `[md](path)`
+ * links in every document that points at `from`. Returns the changed paths.
+ */
+async function rewriteInboundLinks(
+  vault: VaultService,
+  indexer: IndexService,
+  from: string,
+  to: string,
+): Promise<string[]> {
+  const sources = indexer.backlinks(from).map((s) => s.path);
+  if (sources.length === 0) return [];
+
+  const paths = new Set(indexer.listDocs().map((d) => d.path));
+  const newBase = nodePath.basename(to).replace(/\.md$/, '');
+  const collision = [...paths].some(
+    (p) => p !== from && nodePath.basename(p).replace(/\.md$/, '') === newBase,
+  );
+  const wikiTarget = collision ? to.replace(/\.md$/, '') : newBase;
+  const byName = buildNameIndex(paths);
+  const changed: string[] = [];
+
+  for (const src of sources) {
+    let doc;
+    try {
+      doc = await vault.readDoc(src);
+    } catch {
+      continue;
+    }
+    let dirty = false;
+    let body = doc.body;
+
+    // [[wiki]] — preserve #section and |alias, swap only the target.
+    body = body.replace(/\[\[([^\]\n]+)\]\]/g, (full, inner: string) => {
+      const pipe = inner.indexOf('|');
+      const alias = pipe >= 0 ? inner.slice(pipe) : '';
+      const beforeAlias = pipe >= 0 ? inner.slice(0, pipe) : inner;
+      const hash = beforeAlias.indexOf('#');
+      const section = hash >= 0 ? beforeAlias.slice(hash) : '';
+      const target = (hash >= 0 ? beforeAlias.slice(0, hash) : beforeAlias).trim();
+      if (resolveLink(src, target, 'wiki', paths, byName) === from) {
+        dirty = true;
+        return `[[${wikiTarget}${section}${alias}]]`;
+      }
+      return full;
+    });
+
+    // [text](path) — rewrite the relative path; skip images and external URLs.
+    body = body.replace(
+      /(!?)\[([^\]\n]*)\]\(([^)\s]+)(\s+"[^"]*")?\)/g,
+      (full, bang: string, text: string, url: string, title = '') => {
+        if (bang === '!') return full;
+        if (resolveLink(src, url.trim(), 'md', paths, byName) !== from) return full;
+        let rel = nodePath.posix.relative(nodePath.posix.dirname(src), to);
+        if (!rel.startsWith('.')) rel = `./${rel}`;
+        dirty = true;
+        return `${bang}[${text}](${rel}${title})`;
+      },
+    );
+
+    if (dirty) {
+      await vault.writeDoc(src, doc.frontmatter, body, { baseMtimeMs: doc.mtimeMs });
+      changed.push(src);
+    }
+  }
+  return changed;
 }
 
 /** Switches the active vault at runtime (re-inits all services). Lives outside
@@ -133,6 +203,18 @@ export function createApi(
     await vault.deleteDoc(path);
     indexer.removeFile(path);
     return c.json({ ok: true });
+  });
+
+  // Rename or move a document. Rewrites inbound links so references survive.
+  app.post('/api/doc/move', async (c) => {
+    const { from, to } = await c.req.json<{ from?: string; to?: string }>();
+    if (!from || !to) throw new VaultError('нужны from и to', 400);
+    const rewritten = await rewriteInboundLinks(vault, indexer, from, to);
+    const doc = await vault.moveDoc(from, to);
+    indexer.removeFile(from);
+    await indexer.indexFile(to);
+    for (const p of rewritten) await indexer.indexFile(p);
+    return c.json({ doc, rewritten });
   });
 
   app.get('/api/tasks', (c) =>
