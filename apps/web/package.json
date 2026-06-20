@@ -12,6 +12,7 @@
     "@forma/core": "*",
     "@tanstack/react-query": "^5.59.0",
     "@tanstack/react-router": "^1.78.0",
+    "@tanstack/react-virtual": "^3.14.3",
     "@tauri-apps/api": "^2.11.1",
     "@tiptap/core": "^3.27.1",
     "@tiptap/extension-code-block-lowlight": "^3.27.1",
