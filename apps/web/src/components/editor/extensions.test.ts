@@ -47,3 +47,41 @@ describe('editor placeholders', () => {
     expect(placeholderOf(ed, 'h2')).toBe('Heading 2');
   });
 });
+
+// The way the user actually creates controls (slash menu runs these commands).
+describe('placeholders after inserting a control via command', () => {
+  it('to-do via toggleTaskList', () => {
+    const ed = mount('<p></p>');
+    ed.commands.focus('start');
+    ed.commands.toggleTaskList();
+    expect(placeholderOf(ed, 'li[data-checked] p')).toBe('To-do');
+  });
+
+  it('bullet via toggleBulletList', () => {
+    const ed = mount('<p></p>');
+    ed.commands.focus('start');
+    ed.commands.toggleBulletList();
+    expect(placeholderOf(ed, 'li p')).toBe('List');
+  });
+
+  it('numbered via toggleOrderedList', () => {
+    const ed = mount('<p></p>');
+    ed.commands.focus('start');
+    ed.commands.toggleOrderedList();
+    expect(placeholderOf(ed, 'li p')).toBe('List');
+  });
+
+  it('quote via toggleBlockquote', () => {
+    const ed = mount('<p></p>');
+    ed.commands.focus('start');
+    ed.commands.toggleBlockquote();
+    expect(placeholderOf(ed, 'blockquote p')).toBe('Quote');
+  });
+
+  it('toggle via setDetails', () => {
+    const ed = mount('<p></p>');
+    ed.commands.focus('start');
+    ed.commands.setDetails();
+    expect(placeholderOf(ed, 'summary')).toBe('Toggle');
+  });
+});

@@ -110,7 +110,7 @@ export function BoardPage() {
         <span className="ml-auto text-xs text-faintest">drag a card to change its status</span>
       </div>
 
-      <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto pb-2">
+      <div className="flex min-h-0 flex-1 gap-2 overflow-x-auto pb-2">
         {TASK_STATUSES.map((status) => {
           const items = (tasks.data ?? []).filter((t) => t.status === status);
           return (
@@ -130,7 +130,9 @@ export function BoardPage() {
                 if (path && current && current.status !== status) move.mutate({ path, status });
               }}
               className={clsx(
-                'flex w-72 shrink-0 flex-col rounded-xl border transition-colors',
+                // Flex to share the width so all columns fit small screens;
+                // min-w keeps them usable and enables horizontal scroll if needed.
+                'flex min-w-[150px] flex-1 flex-col rounded-xl border transition-colors',
                 dragOver === status ? 'border-accent-border bg-accent-wash' : 'border-line bg-surface-2/40',
               )}
             >
