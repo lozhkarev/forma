@@ -25,6 +25,13 @@ interface PatchTaskBody {
   patch: Record<string, unknown>;
 }
 
+/** Switches the active vault at runtime (re-inits all services). Lives outside
+ *  the rebuildable app so the route survives a switch. */
+export interface VaultController {
+  current(): string;
+  switch(path: string): Promise<void>;
+}
+
 export function createApi(
   vault: VaultService,
   indexer: IndexService,
@@ -32,6 +39,7 @@ export function createApi(
   agents: AgentService,
   scheduler: Scheduler,
   settings: SettingsService,
+  vaultController: VaultController,
 ): Hono {
   const app = new Hono();
 
@@ -50,6 +58,17 @@ export function createApi(
   });
 
   app.get('/api/health', (c) => c.json({ ok: true, vault: vault.root }));
+
+  app.get('/api/vault', (c) => c.json({ path: vaultController.current() }));
+
+  // Switch the active vault (works in both the browser and the desktop app).
+  // Rebuilds all services for the new root; clients should reload afterwards.
+  app.post('/api/vault/switch', async (c) => {
+    const { path } = await c.req.json<{ path?: string }>().catch(() => ({ path: undefined }));
+    if (!path || !path.trim()) throw new VaultError('параметр path обязателен', 400);
+    await vaultController.switch(path.trim());
+    return c.json({ path: vaultController.current() });
+  });
 
   app.get('/api/tree', async (c) => c.json(await vault.listTree()));
 

@@ -357,14 +357,18 @@ Tauri 2-обёртка (`apps/desktop`): web как фронт, Node-server ка
   `store_credential`/`credential_present`. Фолбэк на env / `~/.claude`.
 - Экран Settings → «Desktop»: смена vault (с рестартом сервера) и ввод кредов.
 
-### 4.4 Осталось
+### 4.4 Переключение vault в рантайме ✅
+- Сервер: `buildWorkspace(root)` собирает все сервисы; `POST /api/vault/switch`
+  пересобирает их на новый корень и подменяет Hono-app без re-listen порта
+  (`GET /api/vault` — текущий путь). Работает и в вебе, и в десктопе **без
+  рестарта процесса**.
+- Web: секция Settings → «Vault» (общая) — путь-инпут + Switch; в десктопе
+  кнопка выбора папки. Десктоп дополнительно сохраняет выбор для след. запуска
+  (`remember_vault`).
+
+### 4.5 Осталось
 - Подпись/нотаризация .app (сейчас ad-hoc codesign) — для распространения.
 - Полный `tauri build` и проверка прод-пути (.app ~350MB из-за node+claude).
-- **Открытый вопрос (дизайн):** смена vault сейчас десктоп-специфична (рестарт
-  sidecar). Лучше — серверный эндпоинт переключения vault (re-init
-  VaultService/IndexService/AgentRuntime на новый корень), тогда работает и в
-  вебе, и в десктопе без рестарта процесса. Требует сделать `VAULT_ROOT`
-  изменяемым в рантайме (сейчас const из env). См. техдолг.
 
 ---
 
@@ -375,10 +379,6 @@ Tauri 2-обёртка (`apps/desktop`): web как фронт, Node-server ка
    (traversal, оптимистичная блокировка, листинги). Осталось: IndexService
    (переиндексация/запросы), agent — Channel/Gate + classify() профилей,
    web — foldRecords/describeTool, и сам редактор (TipTap, см. ниже).
-0. **Переключение vault в рантайме (сервер)**: вынести смену vault на сервер
-   (эндпоинт + re-init VaultService/IndexService/AgentRuntime), чтобы работало
-   и в вебе, и в десктопе без рестарта процесса. `VAULT_ROOT` сейчас const из
-   env — сделать изменяемым. Закрывает дизайн-вопрос фазы 4.4.
 2. **Рендер markdown в ответах агента** (чат): сейчас pre-wrap текст. Уже есть
    переиспользуемый `components/MarkdownView.tsx` (read-only TipTap) — применить
    его в чате (учесть стриминг: рендерить по мере накопления текста).

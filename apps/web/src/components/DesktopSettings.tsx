@@ -20,34 +20,18 @@ async function reloadAfterRestart(setBusy: (s: string) => void) {
   window.location.reload();
 }
 
-/** Desktop-only settings: vault folder + credentials stored in the OS keychain. */
+/** Desktop-only credentials, stored in the OS keychain and passed to the agent. */
 export function DesktopSettings() {
-  const [vault, setVault] = useState('');
   const [present, setPresent] = useState<Record<string, boolean>>({});
   const [values, setValues] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const refresh = () => {
-    void desktop.getVault().then(setVault);
+  useEffect(() => {
     for (const { key } of CREDENTIAL_KEYS) {
       void desktop.credentialPresent(key).then((p) => setPresent((m) => ({ ...m, [key]: p })));
     }
-  };
-  useEffect(refresh, []);
-
-  const changeVault = async () => {
-    setError(null);
-    try {
-      const path = await desktop.pickVault();
-      if (!path) return;
-      await desktop.setVault(path);
-      await reloadAfterRestart(setBusy);
-    } catch (e) {
-      setBusy(null);
-      setError(e instanceof Error ? e.message : String(e));
-    }
-  };
+  }, []);
 
   const saveCredentials = async () => {
     setError(null);
@@ -78,7 +62,7 @@ export function DesktopSettings() {
 
   return (
     <section className="mb-10">
-      <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">Desktop</h2>
+      <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">Credentials</h2>
 
       {busy && (
         <div className="mb-3 rounded-lg bg-accent-wash px-3 py-2 text-sm text-accent-strong">
@@ -89,26 +73,7 @@ export function DesktopSettings() {
         <div className="mb-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>
       )}
 
-      {/* Vault */}
-      <div className="mb-4 rounded-xl border border-line bg-surface px-4 py-3 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="min-w-0 flex-1">
-            <div className="text-sm font-medium">Vault folder</div>
-            <div className="truncate font-mono text-xs text-muted">{vault || '—'}</div>
-          </div>
-          <button
-            onClick={changeVault}
-            disabled={!!busy}
-            className="rounded-lg px-3 py-1.5 text-sm text-muted hover:bg-active disabled:opacity-50"
-          >
-            Change…
-          </button>
-        </div>
-      </div>
-
-      {/* Credentials (macOS Keychain) */}
       <div className="rounded-xl border border-line bg-surface px-4 py-3 shadow-sm">
-        <div className="mb-1 text-sm font-medium">Credentials</div>
         <p className="mb-3 text-xs text-faintest">
           Stored securely in the OS keychain and passed to the agent. Leave a field blank to keep it
           unchanged. Falls back to environment / <span className="font-mono">~/.claude</span> when

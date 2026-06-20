@@ -45,6 +45,15 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 export const api = {
   tree: () => request<TreeNode>('/api/tree'),
 
+  vault: {
+    get: () => request<{ path: string }>('/api/vault'),
+    switch: (path: string) =>
+      request<{ path: string }>('/api/vault/switch', {
+        method: 'POST',
+        body: JSON.stringify({ path }),
+      }),
+  },
+
   doc: (path: string) => request<DocFile>(`/api/doc?path=${encodeURIComponent(path)}`),
 
   createDoc: (path: string, frontmatter: Frontmatter, body: string) =>

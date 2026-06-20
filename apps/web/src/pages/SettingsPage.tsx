@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { api } from '../api';
 import { DesktopSettings } from '../components/DesktopSettings';
+import { VaultSection } from '../components/VaultSection';
 import { isDesktop } from '../lib/desktop';
 import type { McpServerConfig } from '../lib/settings';
 
@@ -228,6 +229,7 @@ export function SettingsPage() {
         variables and reference them as <span className="font-mono">{'${VAR}'}</span>.
       </p>
 
+      <VaultSection />
       {isDesktop && <DesktopSettings />}
 
       <section className="mb-10">

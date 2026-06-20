@@ -169,12 +169,13 @@ async fn pick_vault(app: AppHandle) -> Option<String> {
     .map(|p| p.to_string_lossy().to_string())
 }
 
-/// Switch the active vault: persist it and restart the server against it.
+/// Persist the chosen vault so the next launch starts the server with it. The
+/// running server switches at runtime via POST /api/vault/switch (no restart).
 #[tauri::command]
-fn set_vault(app: AppHandle, path: String) -> Result<(), String> {
+fn remember_vault(app: AppHandle, path: String) -> Result<(), String> {
     std::fs::create_dir_all(&path).map_err(|e| e.to_string())?;
     save_vault(&app, &path);
-    build_and_spawn(&app, &path)
+    Ok(())
 }
 
 /// Restart the server (e.g. to pick up changed credentials).
@@ -215,7 +216,7 @@ pub fn run() {
             credential_present,
             get_vault,
             pick_vault,
-            set_vault,
+            remember_vault,
             restart_server
         ])
         .setup(|app| {

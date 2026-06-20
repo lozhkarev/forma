@@ -17,7 +17,8 @@ export const CREDENTIAL_KEYS = [
 export const desktop = {
   getVault: () => invoke<string>('get_vault'),
   pickVault: () => invoke<string | null>('pick_vault'),
-  setVault: (path: string) => invoke<void>('set_vault', { path }),
+  /** Persist the vault for the next launch (runtime switch is server-side). */
+  rememberVault: (path: string) => invoke<void>('remember_vault', { path }),
   restartServer: () => invoke<void>('restart_server'),
   storeCredential: (key: string, value: string) =>
     invoke<void>('store_credential', { key, value }),
