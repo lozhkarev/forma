@@ -10,6 +10,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Layout } from './components/Layout';
 import { AgentsPage } from './pages/AgentsPage';
+import { BoardPage } from './pages/BoardPage';
 import { DocsPage } from './pages/DocsPage';
 import { ProjectsPage } from './pages/ProjectsPage';
 import { ReportsPage } from './pages/ReportsPage';
@@ -50,6 +51,15 @@ export const projectsRoute = createRoute({
   component: ProjectsPage,
 });
 
+export const boardRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/board',
+  component: BoardPage,
+  validateSearch: (search: Record<string, unknown>): { project?: string } => ({
+    project: typeof search.project === 'string' ? search.project : undefined,
+  }),
+});
+
 export const agentsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/agents',
@@ -82,6 +92,7 @@ const routeTree = rootRoute.addChildren([
   todayRoute,
   tasksRoute,
   projectsRoute,
+  boardRoute,
   agentsRoute,
   reportsRoute,
   docsRoute,

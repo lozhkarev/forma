@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Link } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import clsx from 'clsx';
 import type { ProjectRow } from '@forma/core';
 import { api } from '../api';
@@ -14,6 +14,7 @@ function progress(p: ProjectRow): { done: number; total: number } {
 }
 
 function ProjectCard({ project }: { project: ProjectRow }) {
+  const navigate = useNavigate();
   const { done, total } = progress(project);
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
   const active =
@@ -24,8 +25,8 @@ function ProjectCard({ project }: { project: ProjectRow }) {
 
   return (
     <Link
-      to="/docs"
-      search={{ path: project.path }}
+      to="/board"
+      search={{ project: project.slug }}
       className="block rounded-xl border border-line bg-surface p-5 shadow-[var(--shadow-soft)] transition hover:border-line-strong hover:shadow"
     >
       <div className="mb-1 flex items-center justify-between gap-2">
@@ -47,8 +48,19 @@ function ProjectCard({ project }: { project: ProjectRow }) {
       <div className="h-1.5 overflow-hidden rounded-full bg-line">
         <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${pct}%` }} />
       </div>
-      <div className="mt-1 text-right text-[10px] text-ghost">
-        {done}/{total}
+      <div className="mt-1 flex items-center justify-between text-[10px] text-ghost">
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            void navigate({ to: '/docs', search: { path: project.path } });
+          }}
+          className="rounded px-1.5 py-0.5 text-faint hover:bg-active hover:text-body"
+        >
+          project.md ↗
+        </button>
+        <span>
+          {done}/{total}
+        </span>
       </div>
     </Link>
   );

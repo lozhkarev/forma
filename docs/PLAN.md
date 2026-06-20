@@ -389,7 +389,9 @@ Tauri 2-обёртка (`apps/desktop`): web как фронт, Node-server ка
 3. ✅ Rename/move документов: `POST /api/doc/move` + `VaultService.moveDoc`,
    переписывание входящих ссылок (`[[wiki]]` и `[md](path)`) в бэклинках,
    контекстное меню в дереве (rename/move, delete, new here). Reindex обоих.
-4. Kanban-доска внутри проекта (сейчас только список задач с фильтром).
+4. ✅ Kanban-доска (`/board?project=`): колонки по статусам, drag-and-drop
+   карточек для смены статуса (оптимистично), селектор проекта. Карточка
+   проекта ведёт на доску.
 5. Code-splitting (manualChunks для TipTap, ~880KB бандл) и апгрейд на
    Vite 7 (закрывает dev-only advisory esbuild).
 6. Виртуализация длинных списков задач; пагинация поиска.
