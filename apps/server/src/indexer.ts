@@ -158,9 +158,14 @@ export class IndexService extends EventEmitter {
 
   /** Следить за vault: правки агента и внешних редакторов попадают в индекс. */
   startWatcher(): void {
+    // Skip the same paths a full reindex skips (vault.listMarkdownFiles): any
+    // dot-directory (.forma/.git/.claude/.obsidian…) and node_modules. Otherwise
+    // the watcher would index e.g. .claude/*.md that reindexAll never sees,
+    // leaving the index inconsistent across restarts.
     const ignored = (p: string) => {
       const rel = path.relative(this.vault.root, p);
-      return rel.split(path.sep).some((seg) => seg === '.forma' || seg === '.git' || seg === 'node_modules');
+      if (rel === '') return false;
+      return rel.split(path.sep).some((seg) => seg.startsWith('.') || seg === 'node_modules');
     };
     this.watcher = chokidar.watch(this.vault.root, { ignored, ignoreInitial: true });
     const onUpsert = (abs: string, kind: 'added' | 'changed') => {

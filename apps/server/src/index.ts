@@ -48,6 +48,8 @@ async function buildWorkspace(root: string, controller: VaultController): Promis
   });
 
   const agents = new AgentService(vault, runtime);
+  const reaped = await agents.reapStaleRuns();
+  if (reaped > 0) console.log(`[forma] помечено прерванными зависших запусков: ${reaped}`);
 
   const scheduler = new Scheduler(agents);
   await scheduler.start();

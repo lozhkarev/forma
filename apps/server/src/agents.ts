@@ -160,6 +160,43 @@ export class AgentService {
     }
   }
 
+  /**
+   * Mark runs left as `running` by a crashed/restarted server as errored —
+   * otherwise they'd hang in the journal forever. Run once at startup.
+   */
+  async reapStaleRuns(): Promise<number> {
+    let agentDirs: string[];
+    try {
+      agentDirs = await fs.readdir(this.runsDir);
+    } catch {
+      return 0; // no runs yet
+    }
+    let reaped = 0;
+    for (const name of agentDirs) {
+      const agentDir = path.join(this.runsDir, name);
+      let runIds: string[];
+      try {
+        runIds = await fs.readdir(agentDir);
+      } catch {
+        continue;
+      }
+      for (const runId of runIds) {
+        const dir = path.join(agentDir, runId);
+        const meta = await this.readMeta(dir);
+        if (meta?.status === 'running') {
+          await this.writeMeta(dir, {
+            ...meta,
+            status: 'error',
+            finishedAt: nowIso(),
+            error: 'interrupted (server restarted)',
+          });
+          reaped++;
+        }
+      }
+    }
+    return reaped;
+  }
+
   async listRuns(name: string, limit = 50): Promise<AgentRun[]> {
     const agentDir = path.join(this.runsDir, safeName(name));
     let entries: string[];
