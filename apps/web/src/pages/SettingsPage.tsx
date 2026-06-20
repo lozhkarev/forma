@@ -207,6 +207,38 @@ function ServerForm({
   );
 }
 
+function GitSetting() {
+  const queryClient = useQueryClient();
+  const prefs = useQuery({ queryKey: ['prefs'], queryFn: api.settings.prefs });
+  const toggle = useMutation({
+    mutationFn: (gitAutocommit: boolean) => api.settings.patchPrefs({ gitAutocommit }),
+    onSuccess: (next) => queryClient.setQueryData(['prefs'], next),
+  });
+  const on = prefs.data?.gitAutocommit ?? false;
+
+  return (
+    <section className="mb-10">
+      <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">Git history</h2>
+      <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-line bg-surface px-4 py-3 shadow-sm">
+        <input
+          type="checkbox"
+          checked={on}
+          disabled={prefs.isLoading || toggle.isPending}
+          onChange={(e) => toggle.mutate(e.target.checked)}
+          className="h-4 w-4 accent-[var(--color-accent)]"
+        />
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-medium">Keep a git history of the vault</div>
+          <div className="text-xs text-faintest">
+            On first enable, runs <span className="font-mono">git init</span> and commits the vault,
+            then autocommits edits and agent runs. Turn off to stop committing.
+          </div>
+        </div>
+      </label>
+    </section>
+  );
+}
+
 export function SettingsPage() {
   const queryClient = useQueryClient();
   const mcp = useQuery({ queryKey: ['mcp'], queryFn: api.settings.mcp });
@@ -230,6 +262,7 @@ export function SettingsPage() {
       </p>
 
       <VaultSection />
+      <GitSetting />
       {isDesktop && <DesktopSettings />}
 
       <section className="mb-10">

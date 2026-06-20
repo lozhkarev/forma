@@ -8,7 +8,7 @@ import type {
 } from '@forma/core';
 import type { AgentRun, AgentSummary, RunDetail } from './lib/agents';
 import type { AgentModel, PermissionProfile, PersistedRecord, SessionSummary } from './lib/chat';
-import type { McpConfig, McpServerConfig, SkillInfo } from './lib/settings';
+import type { McpConfig, McpServerConfig, Prefs, SkillInfo } from './lib/settings';
 
 /**
  * API origin. Empty in the browser dev build (relative `/api/...` go through
@@ -200,5 +200,9 @@ export const api = {
       request<McpConfig>(`/api/settings/mcp/${encodeURIComponent(name)}`, { method: 'DELETE' }),
 
     skills: () => request<SkillInfo[]>('/api/settings/skills'),
+
+    prefs: () => request<Prefs>('/api/settings/prefs'),
+    patchPrefs: (patch: Partial<Prefs>) =>
+      request<Prefs>('/api/settings/prefs', { method: 'PATCH', body: JSON.stringify(patch) }),
   },
 };

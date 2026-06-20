@@ -61,8 +61,13 @@ function createRenderer(): SuggestionOptions<SlashItem>['render'] {
 
     const place = (rect: DOMRect | null | undefined) => {
       if (!el || !rect) return;
-      el.style.top = `${rect.bottom + window.scrollY + 4}px`;
       el.style.left = `${rect.left + window.scrollX}px`;
+      // Flip above the caret when there isn't room below (e.g. near the page bottom).
+      const menuH = el.offsetHeight || 320;
+      const flipUp = window.innerHeight - rect.bottom < menuH + 8 && rect.top > menuH + 8;
+      el.style.top = flipUp
+        ? `${rect.top + window.scrollY - menuH - 4}px`
+        : `${rect.bottom + window.scrollY + 4}px`;
     };
 
     return {

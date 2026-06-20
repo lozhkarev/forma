@@ -42,8 +42,9 @@ async function buildWorkspace(root: string, controller: VaultController): Promis
   console.log(`[forma] индекс: ${indexed} документов (${root})`);
   indexer.startWatcher();
 
+  const settings = new SettingsService(vault);
   const git = new GitService(root);
-  await git.ensureRepo();
+  if ((await settings.readPrefs()).gitAutocommit) await git.ensureRepo();
 
   const runtime = new AgentRuntime(root, {
     model: AGENT_MODEL,
@@ -73,8 +74,7 @@ async function buildWorkspace(root: string, controller: VaultController): Promis
     git.scheduleCommit('vault: edits');
   });
 
-  const settings = new SettingsService(vault);
-  const app = createApi(vault, indexer, runtime, agents, scheduler, settings, controller);
+  const app = createApi(vault, indexer, runtime, agents, scheduler, settings, git, controller);
 
   return { root, indexer, runtime, scheduler, eventTrigger, git, app };
 }

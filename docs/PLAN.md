@@ -387,7 +387,7 @@ Tauri 2-обёртка (`apps/desktop`): web как фронт, Node-server ка
 2. ✅ Git-интеграция vault (`GitService`, simple-git): `git init` + initial
    commit при старте, лейблованный коммит после каждого агентского прогона,
    дебаунс-коммит правок (ручных/внешних/чат-агента) по событиям индекса.
-   Best-effort, сериализовано; `.forma/` игнорируется.
+   Управляется настройкой `gitAutocommit` (Settings → Git history), вкл/выкл на лету. Best-effort, `.forma/` игнорируется.
 3. ✅ Rename/move документов: `POST /api/doc/move` + `VaultService.moveDoc`,
    переписывание входящих ссылок (`[[wiki]]` и `[md](path)`) в бэклинках,
    контекстное меню в дереве (rename/move, delete, new here). Reindex обоих.

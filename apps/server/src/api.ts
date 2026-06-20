@@ -8,6 +8,7 @@ import { buildNameIndex, resolveLink, type Frontmatter, type VaultEvent } from '
 import { createAgentRoutes } from './agent-api.js';
 import { createAgentDefRoutes } from './agents-api.js';
 import type { AgentService } from './agents.js';
+import type { GitService } from './git.js';
 import type { IndexService } from './indexer.js';
 import type { AgentRuntime } from './runtime.js';
 import type { Scheduler } from './scheduler.js';
@@ -112,6 +113,7 @@ export function createApi(
   agents: AgentService,
   scheduler: Scheduler,
   settings: SettingsService,
+  git: GitService,
   vaultController: VaultController,
 ): Hono {
   const app = new Hono();
@@ -120,7 +122,7 @@ export function createApi(
 
   app.route('/api/agent', createAgentRoutes(runtime));
   app.route('/api/agents', createAgentDefRoutes(agents, scheduler));
-  app.route('/api/settings', createSettingsRoutes(settings));
+  app.route('/api/settings', createSettingsRoutes(settings, git));
 
   app.onError((err, c) => {
     if (err instanceof VaultError) {

@@ -16,3 +16,7 @@ export interface SkillInfo {
   description: string;
   path: string;
 }
+
+export interface Prefs {
+  gitAutocommit: boolean;
+}

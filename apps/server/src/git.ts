@@ -18,6 +18,19 @@ export class GitService {
     this.git = simpleGit(root);
   }
 
+  /** Turn the git history on (init + enable) or off (stop committing) at runtime. */
+  async setEnabled(on: boolean): Promise<void> {
+    if (on) {
+      if (!this.enabled) await this.ensureRepo();
+    } else {
+      this.enabled = false;
+      if (this.timer) {
+        clearTimeout(this.timer);
+        this.timer = null;
+      }
+    }
+  }
+
   async ensureRepo(): Promise<void> {
     try {
       if (!existsSync(path.join(this.root, '.git'))) {

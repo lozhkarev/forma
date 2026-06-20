@@ -15,6 +15,14 @@ export interface SkillInfo {
   path: string;
 }
 
+/** Local (per-vault, gitignored) preferences. */
+export interface Prefs {
+  /** Keep a git history of the vault (init + autocommit). */
+  gitAutocommit: boolean;
+}
+
+const DEFAULT_PREFS: Prefs = { gitAutocommit: true };
+
 function safeName(name: string): string {
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(name)) {
     throw new VaultError(`invalid server name: ${name}`, 400);
@@ -30,10 +38,28 @@ function safeName(name: string): string {
 export class SettingsService {
   private mcpPath: string;
   private skillsDir: string;
+  private prefsPath: string;
 
   constructor(vault: VaultService) {
     this.mcpPath = path.join(vault.root, '.claude', 'mcp.json');
     this.skillsDir = path.join(vault.root, '.claude', 'skills');
+    this.prefsPath = path.join(vault.root, '.forma', 'prefs.json');
+  }
+
+  async readPrefs(): Promise<Prefs> {
+    try {
+      const parsed = JSON.parse(await fs.readFile(this.prefsPath, 'utf8')) as Partial<Prefs>;
+      return { ...DEFAULT_PREFS, ...parsed };
+    } catch {
+      return { ...DEFAULT_PREFS };
+    }
+  }
+
+  async writePrefs(patch: Partial<Prefs>): Promise<Prefs> {
+    const next = { ...(await this.readPrefs()), ...patch };
+    await fs.mkdir(path.dirname(this.prefsPath), { recursive: true });
+    await fs.writeFile(this.prefsPath, JSON.stringify(next, null, 2) + '\n', 'utf8');
+    return next;
   }
 
   async readMcp(): Promise<McpConfig> {
