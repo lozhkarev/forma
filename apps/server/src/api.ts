@@ -244,6 +244,8 @@ export function createApi(
     return c.json(updated);
   });
 
+  app.get('/api/graph', (c) => c.json(indexer.linkGraph()));
+
   app.get('/api/projects', (c) => c.json(indexer.listProjects()));
 
   app.get('/api/docs', (c) => c.json(indexer.listDocs()));

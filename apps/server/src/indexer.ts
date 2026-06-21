@@ -271,6 +271,36 @@ export class IndexService extends EventEmitter {
       .sort((a, b) => a.title.localeCompare(b.title));
   }
 
+  /** The whole link graph: documents as nodes, resolved links as directed edges. */
+  linkGraph(): {
+    nodes: Array<{ path: string; title: string; kind: string }>;
+    edges: Array<{ source: string; target: string }>;
+  } {
+    const docs = this.db.prepare('SELECT path, title, kind FROM documents').all() as Array<{
+      path: string;
+      title: string;
+      kind: string;
+    }>;
+    const links = this.db.prepare('SELECT source, target, kind FROM links').all() as Array<{
+      source: string;
+      target: string;
+      kind: LinkKind;
+    }>;
+    const paths = new Set(docs.map((d) => d.path));
+    const byName = buildNameIndex(paths);
+    const seen = new Set<string>();
+    const edges: Array<{ source: string; target: string }> = [];
+    for (const l of links) {
+      const target = resolveLink(l.source, l.target, l.kind, paths, byName);
+      if (!target || target === l.source) continue;
+      const key = `${l.source} ${target}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      edges.push({ source: l.source, target });
+    }
+    return { nodes: docs, edges };
+  }
+
   search(query: string): SearchHit[] {
     const tokens = query.split(/\s+/).filter(Boolean);
     if (tokens.length === 0) return [];

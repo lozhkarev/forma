@@ -12,6 +12,7 @@ import { Layout } from './components/Layout';
 import { AgentsPage } from './pages/AgentsPage';
 import { BoardPage } from './pages/BoardPage';
 import { DocsPage } from './pages/DocsPage';
+import { GraphPage } from './pages/GraphPage';
 import { ProjectsPage } from './pages/ProjectsPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { SettingsPage } from './pages/SettingsPage';
@@ -60,6 +61,12 @@ export const boardRoute = createRoute({
   }),
 });
 
+export const graphRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/graph',
+  component: GraphPage,
+});
+
 export const agentsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/agents',
@@ -93,6 +100,7 @@ const routeTree = rootRoute.addChildren([
   tasksRoute,
   projectsRoute,
   boardRoute,
+  graphRoute,
   agentsRoute,
   reportsRoute,
   docsRoute,

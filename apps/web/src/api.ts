@@ -104,6 +104,12 @@ export const api = {
 
   projects: () => request<ProjectRow[]>('/api/projects'),
 
+  graph: () =>
+    request<{
+      nodes: Array<{ path: string; title: string; kind: string }>;
+      edges: Array<{ source: string; target: string }>;
+    }>('/api/graph'),
+
   search: (q: string) => request<SearchHit[]>(`/api/search?q=${encodeURIComponent(q)}`),
 
   backlinks: (path: string) =>
