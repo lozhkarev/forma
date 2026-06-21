@@ -372,9 +372,17 @@ Tauri 2-обёртка (`apps/desktop`): web как фронт, Node-server ка
   кнопка выбора папки. Десктоп дополнительно сохраняет выбор для след. запуска
   (`remember_vault`).
 
-### 4.5 Осталось
-- Подпись/нотаризация .app (сейчас ad-hoc codesign) — для распространения.
-- Полный `tauri build` и проверка прод-пути (.app ~350MB из-за node+claude).
+### 4.5 Полный билд ✅
+- `tauri build` → `Forma.app` (~347MB: forma-desktop 4.6M + forma-server SEA
+  127M + claude 215M в `Contents/MacOS/`). Прод-путь проверен вживую: `.app`
+  запускается из Finder, sidecar поднимает API, **агент отвечает** (bundled
+  `claude` резолвится из бандла), vault/индекс работают.
+
+### 4.6 Осталось
+- Подпись/нотаризация .app (сейчас ad-hoc codesign) — для распространения другим
+  (у себя запускается).
+- Опционально: вынести node/claude из бандла (download-on-first-run) ради
+  размера .app.
 
 ---
 

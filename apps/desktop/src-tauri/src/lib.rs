@@ -10,9 +10,10 @@ use tauri_plugin_shell::ShellExt;
 /// killed when the app exits (otherwise it would outlive the window).
 struct ServerProcess(Mutex<Option<CommandChild>>);
 
-#[cfg(target_arch = "aarch64")]
+// Only used by the dev branch of agent_binary() below.
+#[cfg(all(debug_assertions, target_arch = "aarch64"))]
 const NODE_ARCH: &str = "arm64";
-#[cfg(target_arch = "x86_64")]
+#[cfg(all(debug_assertions, target_arch = "x86_64"))]
 const NODE_ARCH: &str = "x64";
 
 /// macOS Keychain service name for stored credentials.
