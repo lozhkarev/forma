@@ -316,6 +316,12 @@ index.md в формате §6. Резолвер ссылок (3.1) понима
 ✓ Проверено: бутстрап ставит weekly-report; wiki conformance (непустой `type`);
 бэклинк index.md→forma.md через md-ссылку; reports/ в дереве. typecheck + сборка.
 
+### 3.6 Граф связей ✅
+
+`GET /api/graph` (`IndexService.linkGraph` — узлы-документы + резолвнутые рёбра
+ссылок). Страница `/graph`: force-directed SVG на d3-force, размер узла по
+степени, цвет по типу, drag/hover-подсветка соседей/клик-открытие. Пункт меню.
+
 ### 3.5 `[[ ]]`-автодополнение в редакторе ✅
 
 Сделано: эндпоинт `GET /api/docs` (`indexer.listDocs` — title/path + `insert`:
