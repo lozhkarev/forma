@@ -10,6 +10,7 @@ import { ChatProvider, useChat } from './chat/ChatProvider';
 const NAV = [
   { to: '/today', label: 'Today', icon: '⌂' },
   { to: '/tasks', label: 'Tasks', icon: '✅' },
+  { to: '/week', label: 'Week', icon: '🗓' },
   { to: '/projects', label: 'Projects', icon: '📁' },
   { to: '/graph', label: 'Graph', icon: '🕸' },
   { to: '/agents', label: 'Agents', icon: '🤖' },

@@ -18,6 +18,7 @@ import { ReportsPage } from './pages/ReportsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { TasksPage } from './pages/TasksPage';
 import { TodayPage } from './pages/TodayPage';
+import { WeekPage } from './pages/WeekPage';
 import './styles.css';
 
 const queryClient = new QueryClient({
@@ -44,6 +45,12 @@ export const tasksRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/tasks',
   component: TasksPage,
+});
+
+export const weekRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/week',
+  component: WeekPage,
 });
 
 export const projectsRoute = createRoute({
@@ -98,6 +105,7 @@ const routeTree = rootRoute.addChildren([
   indexRoute,
   todayRoute,
   tasksRoute,
+  weekRoute,
   projectsRoute,
   boardRoute,
   graphRoute,
