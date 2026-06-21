@@ -46,11 +46,27 @@ function SearchBox() {
   const [query, setQuery] = useState('');
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState(0);
   const navigate = useNavigate();
   const timer = useRef<ReturnType<typeof setTimeout>>();
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Cmd/Ctrl+K focuses search from anywhere.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        inputRef.current?.focus();
+        inputRef.current?.select();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   const onChange = (value: string) => {
     setQuery(value);
+    setSelected(0);
     clearTimeout(timer.current);
     if (value.trim() === '') {
       setHits([]);
@@ -60,6 +76,7 @@ function SearchBox() {
     timer.current = setTimeout(async () => {
       const results = await api.search(value);
       setHits(results);
+      setSelected(0);
       setOpen(true);
     }, 200);
   };
@@ -67,7 +84,28 @@ function SearchBox() {
   const openDoc = (path: string) => {
     setOpen(false);
     setQuery('');
+    inputRef.current?.blur();
     void navigate({ to: '/docs', search: { path } });
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      setOpen(false);
+      inputRef.current?.blur();
+      return;
+    }
+    if (!open || hits.length === 0) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelected((s) => (s + 1) % hits.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelected((s) => (s - 1 + hits.length) % hits.length);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const hit = hits[selected];
+      if (hit) openDoc(hit.path);
+    }
   };
 
   return (
@@ -75,21 +113,28 @@ function SearchBox() {
       <div className="flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13.5px] text-muted">
         <span className="text-[15px] opacity-60">⌕</span>
         <input
+          ref={inputRef}
           value={query}
           onChange={(e) => onChange(e.target.value)}
+          onKeyDown={onKeyDown}
           onBlur={() => setTimeout(() => setOpen(false), 150)}
           onFocus={() => query && setOpen(true)}
           placeholder="Search"
           className="w-full bg-transparent font-medium placeholder:text-faintest focus:outline-none"
         />
+        <kbd className="rounded border border-line-strong px-1 text-[10px] text-faintest">⌘K</kbd>
       </div>
       {open && hits.length > 0 && (
         <div className="absolute z-20 mt-1 max-h-80 w-72 overflow-auto rounded-xl border border-line bg-surface shadow-[var(--shadow-pop)]">
-          {hits.map((hit) => (
+          {hits.map((hit, i) => (
             <button
               key={hit.path}
               onMouseDown={() => openDoc(hit.path)}
-              className="block w-full px-3 py-2 text-left text-sm hover:bg-surface-2"
+              onMouseEnter={() => setSelected(i)}
+              className={clsx(
+                'block w-full px-3 py-2 text-left text-sm',
+                i === selected ? 'bg-active' : 'hover:bg-surface-2',
+              )}
             >
               <div className="font-medium text-ink-strong">{hit.title}</div>
               <div
