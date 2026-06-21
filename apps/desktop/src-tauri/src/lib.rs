@@ -225,6 +225,10 @@ pub fn run() {
             let handle = app.handle().clone();
             let vault = resolve_vault(&handle);
             build_and_spawn(&handle, &vault).expect("failed to spawn forma-server");
+            #[cfg(feature = "devtools")]
+            if let Some(w) = app.get_webview_window("main") {
+                w.open_devtools();
+            }
             Ok(())
         })
         .build(tauri::generate_context!())

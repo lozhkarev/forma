@@ -15,13 +15,17 @@ export default defineConfig({
     chunkSizeWarningLimit: 800,
     rollupOptions: {
       output: {
-        // Split heavy vendors into cacheable chunks instead of one ~1.4MB file:
-        // the editor stack (TipTap/ProseMirror/lowlight) is by far the largest.
+        // Isolate only the heavy editor stack (TipTap/ProseMirror/lowlight) into
+        // its own chunk. Everything else — including React — stays in the entry
+        // chunk; splitting React out risked breaking hook init order in prod.
         manualChunks(id) {
-          if (!id.includes('node_modules')) return undefined;
-          if (/@tiptap|prosemirror|tiptap-markdown|lowlight|highlight\.js/.test(id)) return 'editor';
-          if (/[\\/](react|react-dom|scheduler)[\\/]|@tanstack/.test(id)) return 'react';
-          return 'vendor';
+          if (
+            id.includes('node_modules') &&
+            /@tiptap|prosemirror|tiptap-markdown|lowlight|highlight\.js/.test(id)
+          ) {
+            return 'editor';
+          }
+          return undefined;
         },
       },
     },

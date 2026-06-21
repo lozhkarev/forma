@@ -22,7 +22,15 @@ import { WeekPage } from './pages/WeekPage';
 import './styles.css';
 
 const queryClient = new QueryClient({
-  defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
+  defaultOptions: {
+    queries: {
+      // Survive the packaged sidecar's cold start (~10s): keep retrying with a
+      // capped backoff so the first queries succeed once the server is up.
+      retry: 8,
+      retryDelay: (n) => Math.min(500 * 2 ** n, 2000),
+      refetchOnWindowFocus: false,
+    },
+  },
 });
 
 const rootRoute = createRootRoute({ component: Layout });
@@ -123,10 +131,31 @@ declare module '@tanstack/react-router' {
   }
 }
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>
-  </StrictMode>,
-);
+// Surface fatal startup errors in the window instead of a blank white screen
+// (the packaged app has no easy console access).
+function showFatal(message: string) {
+  const root = document.getElementById('root');
+  if (!root) return;
+  root.innerHTML = '';
+  const pre = document.createElement('pre');
+  pre.style.cssText =
+    'margin:0;padding:24px;font:12px/1.5 ui-monospace,monospace;color:#b91c1c;white-space:pre-wrap;word-break:break-word';
+  pre.textContent = `Forma failed to start:\n\n${message}`;
+  root.appendChild(pre);
+}
+// Async failures (e.g. an API call before the sidecar is ready) must NOT wipe
+// the app — only log them. The overlay is reserved for a synchronous mount crash.
+window.addEventListener('error', (e) => console.error('[forma] error:', e.message));
+window.addEventListener('unhandledrejection', (e) => console.error('[forma] rejection:', e.reason));
+
+try {
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    </StrictMode>,
+  );
+} catch (err) {
+  showFatal(err instanceof Error ? `${err.message}\n\n${err.stack}` : String(err));
+}
