@@ -41,6 +41,45 @@ export function GraphPage() {
   const simRef = useRef<Simulation<GNode, GLink> | null>(null);
   const [hover, setHover] = useState<string | null>(null);
   const neighbors = useRef<Map<string, Set<string>>>(new Map());
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [view, setView] = useState({ x: 0, y: 0, k: 1 });
+
+  // Wheel zoom toward the cursor (non-passive so preventDefault works).
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = svg.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      const factor = Math.exp(-e.deltaY * 0.0015);
+      setView((v) => {
+        const k = Math.min(4, Math.max(0.2, v.k * factor));
+        const gx = (mx - v.x) / v.k;
+        const gy = (my - v.y) / v.k;
+        return { x: mx - gx * k, y: my - gy * k, k };
+      });
+    };
+    svg.addEventListener('wheel', onWheel, { passive: false });
+    return () => svg.removeEventListener('wheel', onWheel);
+  }, [graph.data]);
+
+  // Pan by dragging the background (not a node).
+  const startPan = (e: React.PointerEvent) => {
+    if (e.target !== svgRef.current) return;
+    const sx = e.clientX;
+    const sy = e.clientY;
+    const start = view;
+    const move = (ev: PointerEvent) =>
+      setView({ k: start.k, x: start.x + (ev.clientX - sx), y: start.y + (ev.clientY - sy) });
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -102,8 +141,8 @@ export function GraphPage() {
     const svg = (e.currentTarget as SVGElement).ownerSVGElement!;
     const move = (ev: PointerEvent) => {
       const r = svg.getBoundingClientRect();
-      node.fx = ((ev.clientX - r.left) / r.width) * size.w;
-      node.fy = ((ev.clientY - r.top) / r.height) * size.h;
+      node.fx = (ev.clientX - r.left - view.x) / view.k;
+      node.fy = (ev.clientY - r.top - view.y) / view.k;
       simRef.current?.alphaTarget(0.3).restart();
     };
     const up = () => {
@@ -126,7 +165,13 @@ export function GraphPage() {
         <span className="text-xs text-faintest">
           {graph.data ? `${graph.data.nodes.length} notes · ${graph.data.edges.length} links` : ''}
         </span>
-        <span className="ml-auto text-xs text-faintest">drag to rearrange · click to open</span>
+        <span className="ml-auto text-xs text-faintest">scroll to zoom · drag bg to pan</span>
+        <button
+          onClick={() => setView({ x: 0, y: 0, k: 1 })}
+          className="rounded-lg px-2.5 py-1 text-xs text-muted hover:bg-active"
+        >
+          Reset
+        </button>
       </div>
       <div ref={wrapRef} className="relative min-h-0 flex-1">
         {empty && (
@@ -134,7 +179,14 @@ export function GraphPage() {
             No links yet — connect notes with [[wiki-links]].
           </div>
         )}
-        <svg width={size.w} height={size.h} className="block">
+        <svg
+          ref={svgRef}
+          width={size.w}
+          height={size.h}
+          onPointerDown={startPan}
+          className="block cursor-grab active:cursor-grabbing"
+        >
+          <g transform={`translate(${view.x},${view.y}) scale(${view.k})`}>
           {linksRef.current.map((l, i) => {
             const s = l.source as GNode;
             const t = l.target as GNode;
@@ -182,6 +234,7 @@ export function GraphPage() {
               </g>
             );
           })}
+          </g>
         </svg>
       </div>
     </div>
