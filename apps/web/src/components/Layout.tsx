@@ -149,6 +149,75 @@ function SearchBox() {
   );
 }
 
+function QuickCapture() {
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState('');
+  const queryClient = useQueryClient();
+
+  // Cmd/Ctrl+Shift+I — capture to inbox from anywhere.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'i') {
+        e.preventDefault();
+        setOpen(true);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  const add = async () => {
+    const trimmed = title.trim();
+    if (!trimmed) return;
+    const stamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
+    await api.createDoc(
+      `inbox/task-${stamp}.md`,
+      { title: trimmed, status: 'inbox', created: new Date().toISOString().slice(0, 10) },
+      '',
+    );
+    setTitle('');
+    setOpen(false);
+    void queryClient.invalidateQueries({ queryKey: ['tasks'] });
+  };
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        title="Capture to inbox (⌘⇧I)"
+        className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13.5px] font-medium text-muted hover:bg-active/60"
+      >
+        <span className="text-[15px] leading-none text-accent">✚</span>
+        Capture
+      </button>
+      {open && (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center bg-ink/20 pt-[18vh]"
+          onClick={() => setOpen(false)}
+        >
+          <div
+            className="w-[32rem] max-w-[90vw] rounded-2xl border border-line bg-surface p-3 shadow-[var(--shadow-pop)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <input
+              autoFocus
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void add();
+                if (e.key === 'Escape') setOpen(false);
+              }}
+              placeholder="Capture a task to inbox…"
+              className="w-full rounded-lg px-2 py-1.5 text-[15px] placeholder:text-faintest focus:outline-none"
+            />
+            <div className="mt-1 px-2 text-[11px] text-faintest">Enter to add · Esc to cancel</div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 function FormaAIItem() {
   const chat = useChat();
   const on = chat.isOpen;
@@ -199,6 +268,7 @@ function LayoutInner() {
         </div>
 
         <SearchBox />
+        <QuickCapture />
         <FormaAIItem />
 
         <div className="h-2" />
