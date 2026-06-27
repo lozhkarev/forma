@@ -19,7 +19,9 @@ function lastIndexOf(records: PersistedRecord[], match: (r: PersistedRecord) => 
 interface Props {
   /** Existing session to attach to, or null for a fresh draft. */
   initialSessionId: string | null;
-  /** Only the active view consumes global seeds (prompt/context) and is visible. */
+  /** Shown (the active tab in its group); hidden tabs stay mounted. */
+  visible: boolean;
+  /** Focused (active tab of the active group): consumes global seeds. */
   active: boolean;
   models: AgentModel[];
   defaultModel: string;
@@ -32,6 +34,7 @@ interface Props {
 /** One agent conversation: owns its session, transcript stream and composer. */
 export function ChatView({
   initialSessionId,
+  visible,
   active,
   models,
   defaultModel,
@@ -125,8 +128,8 @@ export function ChatView({
   const thinking = busy && records[records.length - 1]?.record.type !== 'text_delta';
 
   useEffect(() => {
-    if (active) bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [records.length, thinking, active]);
+    if (visible) bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [records.length, thinking, visible]);
 
   const send = async (text: string) => {
     let sid = id;
@@ -174,7 +177,7 @@ export function ChatView({
   };
 
   return (
-    <div className={active ? 'flex h-full flex-col' : 'hidden'}>
+    <div className={visible ? 'flex h-full flex-col' : 'hidden'}>
       <div className="flex-1 overflow-auto">
         <div className={expanded ? 'mx-auto w-full max-w-3xl px-6 py-4' : 'px-3 py-4'}>
           {items.length === 0 && !contextDoc && (

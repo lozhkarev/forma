@@ -226,7 +226,7 @@ function QuickCapture() {
 
 function FormaAIItem() {
   const chat = useChat();
-  const on = chat.activeChat !== null;
+  const on = chat.activeIsChat;
   return (
     <button
       onClick={chat.newChat}
