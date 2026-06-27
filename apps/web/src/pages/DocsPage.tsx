@@ -1,11 +1,51 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
-import { useState } from 'react';
+import clsx from 'clsx';
+import { useEffect, useState } from 'react';
 import { api, isConflict } from '../api';
 import { Editor } from '../components/Editor';
 import { FileTree } from '../components/FileTree';
 
 const today = () => new Date().toISOString().slice(0, 10);
+const OPEN_DOCS_KEY = 'forma:openDocs';
+const baseName = (p: string) => (p.split('/').pop() ?? p).replace(/\.md$/, '');
+
+function loadOpenDocs(): string[] {
+  try {
+    const v = JSON.parse(localStorage.getItem(OPEN_DOCS_KEY) ?? '[]');
+    return Array.isArray(v) ? (v as string[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** One open document: keeps its own editor mounted (hidden when not active) so
+ *  unsaved edits and scroll survive tab switches. */
+function DocTab({
+  path,
+  active,
+  onDeleted,
+  onDirty,
+}: {
+  path: string;
+  active: boolean;
+  onDeleted: () => void;
+  onDirty: (dirty: boolean) => void;
+}) {
+  const doc = useQuery({ queryKey: ['doc', path], queryFn: () => api.doc(path) });
+  return (
+    <div className={active ? 'h-full' : 'hidden'}>
+      {doc.isError && (
+        <div className="flex h-full items-center justify-center text-sm text-rose-500">
+          Could not open {path}
+        </div>
+      )}
+      {doc.data && (
+        <Editor key={path} doc={doc.data} onDeleted={onDeleted} onDirtyChange={onDirty} />
+      )}
+    </div>
+  );
+}
 
 function NewDocForm({
   initialPath = '',
@@ -73,16 +113,48 @@ export function DocsPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const tree = useQuery({ queryKey: ['tree'], queryFn: api.tree });
-  const doc = useQuery({
-    queryKey: ['doc', path],
-    queryFn: () => api.doc(path!),
-    enabled: Boolean(path),
-  });
   // null = the "+ New document" button; a string = create form seeded with a dir.
   const [seed, setSeed] = useState<string | null>(null);
+  const [openPaths, setOpenPaths] = useState<string[]>(loadOpenDocs);
+  const [dirty, setDirty] = useState<Record<string, boolean>>({});
 
   const select = (p: string) => void navigate({ to: '/docs', search: { path: p } });
   const refreshTree = () => void queryClient.invalidateQueries({ queryKey: ['tree'] });
+
+  useEffect(() => {
+    localStorage.setItem(OPEN_DOCS_KEY, JSON.stringify(openPaths));
+  }, [openPaths]);
+
+  // The active document is always an open tab.
+  useEffect(() => {
+    if (path && !openPaths.includes(path)) setOpenPaths((o) => [...o, path]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [path]);
+
+  // Reopen the last tab on load when the URL has no document.
+  useEffect(() => {
+    if (!path && openPaths.length > 0) select(openPaths[openPaths.length - 1]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const setDirtyFor = (p: string, d: boolean) =>
+    setDirty((m) => (m[p] === d ? m : { ...m, [p]: d }));
+
+  const closeTab = (p: string) => {
+    setOpenPaths((o) => {
+      const idx = o.indexOf(p);
+      const next = o.filter((x) => x !== p);
+      if (p === path) {
+        const fallback = next[idx] ?? next[idx - 1] ?? null;
+        void navigate({ to: '/docs', search: fallback ? { path: fallback } : {} });
+      }
+      return next;
+    });
+    setDirty((m) => {
+      const { [p]: _drop, ...rest } = m;
+      return rest;
+    });
+  };
 
   const move = async (from: string, to: string) => {
     let dest = to.trim();
@@ -91,6 +163,7 @@ export function DocsPage() {
     try {
       await api.moveDoc(from, dest);
       refreshTree();
+      setOpenPaths((o) => o.map((x) => (x === from ? dest : x)));
       if (path === from) select(dest);
     } catch (e) {
       window.alert(
@@ -103,7 +176,7 @@ export function DocsPage() {
     if (!window.confirm(`Delete ${target}?`)) return;
     await api.deleteDoc(target);
     refreshTree();
-    if (path === target) void navigate({ to: '/docs', search: {} });
+    closeTab(target);
   };
 
   return (
@@ -130,24 +203,59 @@ export function DocsPage() {
           />
         )}
       </div>
-      <div className="min-w-0 flex-1">
-        {!path && (
-          <div className="flex h-full items-center justify-center text-sm text-faintest">
-            Select a document on the left or create a new one
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        {openPaths.length > 0 && (
+          <div className="flex shrink-0 items-stretch overflow-x-auto border-b border-line bg-surface-2/40">
+            {openPaths.map((p) => (
+              <div
+                key={p}
+                onClick={() => select(p)}
+                onAuxClick={(e) => e.button === 1 && closeTab(p)}
+                className={clsx(
+                  'group flex cursor-pointer items-center gap-1.5 border-r border-line px-3 py-1.5 text-xs',
+                  p === path ? 'bg-surface text-ink-strong' : 'text-muted hover:bg-active/50',
+                )}
+                title={p}
+              >
+                <span className="max-w-[12rem] truncate">{baseName(p)}</span>
+                {dirty[p] ? (
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
+                ) : null}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    closeTab(p);
+                  }}
+                  className="ml-0.5 shrink-0 rounded px-0.5 text-faintest opacity-0 hover:bg-line-strong hover:text-body group-hover:opacity-100"
+                  title="Close"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
           </div>
         )}
-        {path && doc.isError && (
-          <div className="flex h-full items-center justify-center text-sm text-rose-500">
-            Could not open {path}
-          </div>
-        )}
-        {path && doc.data && (
-          <Editor
-            key={path}
-            doc={doc.data}
-            onDeleted={() => void navigate({ to: '/docs', search: {} })}
-          />
-        )}
+
+        <div className="min-h-0 flex-1">
+          {!path && (
+            <div className="flex h-full items-center justify-center text-sm text-faintest">
+              Select a document on the left or create a new one
+            </div>
+          )}
+          {openPaths.map((p) => (
+            <DocTab
+              key={p}
+              path={p}
+              active={p === path}
+              onDeleted={() => {
+                refreshTree();
+                closeTab(p);
+              }}
+              onDirty={(d) => setDirtyFor(p, d)}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );

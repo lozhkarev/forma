@@ -422,3 +422,7 @@ Tauri 2-обёртка (`apps/desktop`): web как фронт, Node-server ка
     помечает `running`-запуски как `error` («interrupted»).
 11. ✅ Индексация `.claude/*.md`: вотчер теперь пропускает любые dot-папки, как
     и `reindexAll` — индекс консистентен между перезапусками.
+12. **Зональный UI (остаток DATA-MODEL шаг 5)**: навигация по зонам — раздел
+    Knowledge (очередь `knowledge/inbox/` + wiki + `log.md`), раздел Areas, вид
+    Archive; janitor-архивация в `work/archive/` по статусу; дашборды учитывают
+    `area`/`depends_on`. Сейчас зоны видны только через сырое дерево в Docs.

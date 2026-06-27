@@ -22,6 +22,8 @@ interface Props {
   /** Актуальные данные документа из кеша запросов (обновляются по SSE). */
   doc: DocFile;
   onDeleted: () => void;
+  /** Reports unsaved-changes state (for the tab's dirty dot). */
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 /**
@@ -50,7 +52,7 @@ const DocDragHandle = memo(function DocDragHandle({ editor }: { editor: TiptapEd
  * Редактор документа. Источник истины — markdown: TipTap парсит body
  * при загрузке и сериализует обратно при сохранении.
  */
-export function Editor({ doc, onDeleted }: Props) {
+export function Editor({ doc, onDeleted, onDirtyChange }: Props) {
   const queryClient = useQueryClient();
   const chat = useChat();
   // загруженная версия: от неё считаем dirty и оптимистичную блокировку
@@ -159,6 +161,9 @@ export function Editor({ doc, onDeleted }: Props) {
   };
 
   const changed = dirty || frontmatter !== loaded.frontmatter;
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => onDirtyChange?.(changed), [changed]);
 
   return (
     <div
