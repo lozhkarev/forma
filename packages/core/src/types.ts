@@ -19,11 +19,22 @@ export type DocKind =
   | 'raw'
   | 'task'
   | 'project'
+  | 'area'
+  | 'memory'
   | 'journal'
   | 'agent'
   | 'report'
   | 'chat'
   | 'note';
+
+/**
+ * Retrieval/ownership domain, derived from the top-level folder (see DATA-MODEL.md):
+ * - knowledge: the agent-curated second brain (raw + wiki)
+ * - work: the user's projects/areas/tasks
+ * - memory: the agent's learned recipes/preferences
+ * - ops: runtime artefacts (journal, chats, reports, agents)
+ */
+export type Zone = 'knowledge' | 'work' | 'memory' | 'ops';
 
 export type Frontmatter = Record<string, unknown>;
 

@@ -1,37 +1,69 @@
 import { describe, expect, it } from 'vitest';
-import { detectKind, resolveTitle, taskFromDoc } from './kind.js';
+import { detectKind, detectZone, resolveTitle, taskFromDoc } from './kind.js';
 
 describe('detectKind', () => {
   it('prefers an explicit, valid type over path conventions', () => {
-    expect(detectKind('wiki/x.md', { type: 'task' })).toBe('task');
+    expect(detectKind('knowledge/wiki/x.md', { type: 'task' })).toBe('task');
   });
 
   it('ignores an unknown explicit type and falls back to conventions', () => {
-    expect(detectKind('wiki/x.md', { type: 'bogus' })).toBe('wiki');
+    expect(detectKind('knowledge/wiki/x.md', { type: 'bogus' })).toBe('wiki');
   });
 
-  it('maps top-level folders to kinds', () => {
-    expect(detectKind('wiki/a.md', {})).toBe('wiki');
-    expect(detectKind('raw/a.md', {})).toBe('raw');
+  it('classifies the knowledge zone (inbox + raw are raw, wiki is wiki)', () => {
+    expect(detectKind('knowledge/wiki/a.md', {})).toBe('wiki');
+    expect(detectKind('knowledge/inbox/article.md', {})).toBe('raw');
+    expect(detectKind('knowledge/raw/source.md', {})).toBe('raw');
+  });
+
+  it('classifies the work zone (projects, areas, tasks, archive, inbox)', () => {
+    expect(detectKind('work/projects/foo/project.md', {})).toBe('project');
+    expect(detectKind('work/projects/foo/tasks/t1.md', {})).toBe('task');
+    expect(detectKind('work/projects/foo/notes/n.md', {})).toBe('note');
+    expect(detectKind('work/areas/health/area.md', {})).toBe('area');
+    expect(detectKind('work/areas/health/log.md', {})).toBe('note');
+    expect(detectKind('work/archive/projects/old/project.md', {})).toBe('project');
+    expect(detectKind('work/archive/projects/old/tasks/t.md', {})).toBe('task');
+    expect(detectKind('work/inbox/a.md', { status: 'todo' })).toBe('task');
+    expect(detectKind('work/inbox/a.md', {})).toBe('note');
+  });
+
+  it('classifies memory and ops folders', () => {
+    expect(detectKind('memory/preferences/planning.md', {})).toBe('memory');
     expect(detectKind('journal/2026-06-19.md', {})).toBe('journal');
     expect(detectKind('agents/a.md', {})).toBe('agent');
     expect(detectKind('reports/a.md', {})).toBe('report');
     expect(detectKind('chats/a.md', {})).toBe('chat');
   });
 
-  it('treats inbox items as tasks only when they have a status', () => {
+  it('still understands the legacy flat layout (pre-migration)', () => {
+    expect(detectKind('wiki/a.md', {})).toBe('wiki');
+    expect(detectKind('raw/a.md', {})).toBe('raw');
     expect(detectKind('inbox/a.md', { status: 'todo' })).toBe('task');
-    expect(detectKind('inbox/a.md', {})).toBe('note');
-  });
-
-  it('classifies project files vs tasks vs notes under projects/', () => {
     expect(detectKind('projects/foo/project.md', {})).toBe('project');
-    expect(detectKind('projects/foo/tasks/t1.md', {})).toBe('task');
-    expect(detectKind('projects/foo/notes/n.md', {})).toBe('note');
   });
 
   it('defaults unknown locations to note', () => {
     expect(detectKind('random/a.md', {})).toBe('note');
+  });
+});
+
+describe('detectZone', () => {
+  it('maps folders to retrieval zones', () => {
+    expect(detectZone('knowledge/wiki/a.md')).toBe('knowledge');
+    expect(detectZone('knowledge/inbox/a.md')).toBe('knowledge');
+    expect(detectZone('work/projects/p/project.md')).toBe('work');
+    expect(detectZone('work/inbox/a.md')).toBe('work');
+    expect(detectZone('memory/recipes/r.md')).toBe('memory');
+    expect(detectZone('journal/2026-06-19.md')).toBe('ops');
+    expect(detectZone('chats/c.md')).toBe('ops');
+  });
+
+  it('maps legacy folders to zones', () => {
+    expect(detectZone('wiki/a.md')).toBe('knowledge');
+    expect(detectZone('raw/a.md')).toBe('knowledge');
+    expect(detectZone('projects/p/project.md')).toBe('work');
+    expect(detectZone('inbox/a.md')).toBe('work');
   });
 });
 
@@ -69,12 +101,17 @@ describe('taskFromDoc', () => {
     expect(taskFromDoc('inbox/a.md', { priority: 'whenever' }, '').priority).toBeNull();
   });
 
-  it('derives project from the projects/<slug>/ path when not explicit', () => {
+  it('derives project from the work/projects/<slug>/ path when not explicit', () => {
+    expect(taskFromDoc('work/projects/alpha/tasks/t.md', {}, '').project).toBe('alpha');
+    expect(taskFromDoc('work/archive/projects/alpha/tasks/t.md', {}, '').project).toBe('alpha');
+    // legacy flat path still works
     expect(taskFromDoc('projects/alpha/tasks/t.md', {}, '').project).toBe('alpha');
   });
 
   it('prefers an explicit project field over the path', () => {
-    expect(taskFromDoc('projects/alpha/tasks/t.md', { project: 'beta' }, '').project).toBe('beta');
+    expect(taskFromDoc('work/projects/alpha/tasks/t.md', { project: 'beta' }, '').project).toBe(
+      'beta',
+    );
   });
 
   it('keeps only string tags', () => {
