@@ -4,7 +4,6 @@ import clsx from 'clsx';
 import { useEffect, useRef, useState } from 'react';
 import type { SearchHit, VaultEvent } from '@forma/core';
 import { api, API_BASE } from '../api';
-import { ChatPanel } from './chat/ChatPanel';
 import { ChatProvider, useChat } from './chat/ChatProvider';
 
 const NAV = [
@@ -227,10 +226,10 @@ function QuickCapture() {
 
 function FormaAIItem() {
   const chat = useChat();
-  const on = chat.isOpen;
+  const on = chat.activeChat !== null;
   return (
     <button
-      onClick={chat.toggle}
+      onClick={chat.newChat}
       className={clsx(
         'flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13.5px]',
         on ? 'font-semibold text-accent' : 'font-medium text-muted hover:bg-active/60',
@@ -251,7 +250,6 @@ function FormaAIItem() {
 
 function LayoutInner() {
   useVaultEvents();
-  const chat = useChat();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   return (
     <div className="flex h-screen bg-surface">
@@ -313,15 +311,9 @@ function LayoutInner() {
         </button>
       )}
 
-      <main
-        className={clsx(
-          'min-w-0 flex-1 overflow-auto bg-surface',
-          chat.isOpen && chat.expanded && 'hidden',
-        )}
-      >
+      <main className="min-w-0 flex-1 overflow-auto bg-surface">
         <Outlet />
       </main>
-      <ChatPanel />
     </div>
   );
 }

@@ -5,6 +5,9 @@ import { useEffect, useState } from 'react';
 import { api, isConflict } from '../api';
 import { Editor } from '../components/Editor';
 import { FileTree } from '../components/FileTree';
+import { ChatView } from '../components/chat/ChatView';
+import { useChat } from '../components/chat/ChatProvider';
+import type { AgentModel, SessionSummary } from '../lib/chat';
 
 const today = () => new Date().toISOString().slice(0, 10);
 const OPEN_DOCS_KEY = 'forma:openDocs';
@@ -113,12 +116,30 @@ export function DocsPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const tree = useQuery({ queryKey: ['tree'], queryFn: api.tree });
+  const chat = useChat();
   // null = the "+ New document" button; a string = create form seeded with a dir.
   const [seed, setSeed] = useState<string | null>(null);
   const [openPaths, setOpenPaths] = useState<string[]>(loadOpenDocs);
   const [dirty, setDirty] = useState<Record<string, boolean>>({});
+  const [history, setHistory] = useState<SessionSummary[] | null>(null);
 
-  const select = (p: string) => void navigate({ to: '/docs', search: { path: p } });
+  // Chat plumbing (shared with the workbench tab strip).
+  const [models, setModels] = useState<AgentModel[]>([]);
+  const [defaultModel, setDefaultModel] = useState('');
+  const prefs = useQuery({ queryKey: ['prefs'], queryFn: api.settings.prefs });
+  const showResultMeta = prefs.data?.chatResultMeta ?? false;
+  useEffect(() => {
+    void api.agent.listModels().then(({ models: list, default: def }) => {
+      setModels(list);
+      setDefaultModel(def);
+    });
+  }, []);
+
+  const chatActive = chat.activeChat !== null;
+  const select = (p: string) => {
+    chat.clearActiveChat();
+    void navigate({ to: '/docs', search: { path: p } });
+  };
   const refreshTree = () => void queryClient.invalidateQueries({ queryKey: ['tree'] });
 
   useEffect(() => {
@@ -131,9 +152,9 @@ export function DocsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [path]);
 
-  // Reopen the last tab on load when the URL has no document.
+  // Reopen the last tab on load when the URL has no document and no chat is shown.
   useEffect(() => {
-    if (!path && openPaths.length > 0) select(openPaths[openPaths.length - 1]);
+    if (!path && !chatActive && openPaths.length > 0) select(openPaths[openPaths.length - 1]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -179,6 +200,12 @@ export function DocsPage() {
     closeTab(target);
   };
 
+  const toggleHistory = async () => {
+    setHistory(history ? null : await api.agent.listSessions());
+  };
+
+  const hasTabs = openPaths.length > 0 || chat.openChats.length > 0 || chat.activeChat === 'draft';
+
   return (
     <div className="flex h-full">
       <div className="flex w-64 shrink-0 flex-col overflow-auto border-r border-line bg-surface-2/50 py-2">
@@ -195,7 +222,7 @@ export function DocsPage() {
         {tree.data && (
           <FileTree
             node={tree.data}
-            selected={path}
+            selected={chatActive ? undefined : path}
             onSelect={select}
             onMove={move}
             onDelete={remove}
@@ -205,49 +232,126 @@ export function DocsPage() {
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        {openPaths.length > 0 && (
-          <div className="flex shrink-0 items-stretch overflow-x-auto border-b border-line bg-surface-2/40">
-            {openPaths.map((p) => (
-              <div
-                key={p}
-                onClick={() => select(p)}
-                onAuxClick={(e) => e.button === 1 && closeTab(p)}
-                className={clsx(
-                  'group flex cursor-pointer items-center gap-1.5 border-r border-line px-3 py-1.5 text-xs',
-                  p === path ? 'bg-surface text-ink-strong' : 'text-muted hover:bg-active/50',
-                )}
-                title={p}
+        {hasTabs && (
+          <div className="relative flex shrink-0 items-stretch border-b border-line bg-surface-2/40">
+            <div className="flex min-w-0 flex-1 items-stretch overflow-x-auto">
+              {openPaths.map((p) => {
+                const tabActive = !chatActive && p === path;
+                return (
+                  <div
+                    key={p}
+                    onClick={() => select(p)}
+                    onAuxClick={(e) => e.button === 1 && closeTab(p)}
+                    className={clsx(
+                      'group flex cursor-pointer items-center gap-1.5 border-r border-line px-3 py-1.5 text-xs',
+                      tabActive ? 'bg-surface text-ink-strong' : 'text-muted hover:bg-active/50',
+                    )}
+                    title={p}
+                  >
+                    <span className="max-w-[12rem] truncate">{baseName(p)}</span>
+                    {dirty[p] ? <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent" /> : null}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        closeTab(p);
+                      }}
+                      className="ml-0.5 shrink-0 rounded px-0.5 text-faintest opacity-0 hover:bg-line-strong hover:text-body group-hover:opacity-100"
+                      title="Close"
+                    >
+                      ×
+                    </button>
+                  </div>
+                );
+              })}
+              {chat.openChats.map((c) => {
+                const tabActive = chat.activeChat === c.id;
+                return (
+                  <div
+                    key={c.id}
+                    onClick={() => chat.openChat(c.id, c.title)}
+                    onAuxClick={(e) => e.button === 1 && chat.closeChat(c.id)}
+                    className={clsx(
+                      'group flex cursor-pointer items-center gap-1.5 border-r border-line px-3 py-1.5 text-xs',
+                      tabActive ? 'bg-surface text-ink-strong' : 'text-muted hover:bg-active/50',
+                    )}
+                    title={c.title}
+                  >
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent/70" />
+                    <span className="max-w-[12rem] truncate">{c.title || 'Chat'}</span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        chat.closeChat(c.id);
+                      }}
+                      className="ml-0.5 shrink-0 rounded px-0.5 text-faintest opacity-0 hover:bg-line-strong hover:text-body group-hover:opacity-100"
+                      title="Close"
+                    >
+                      ×
+                    </button>
+                  </div>
+                );
+              })}
+              {chat.activeChat === 'draft' && (
+                <div className="flex items-center gap-1.5 border-r border-line bg-surface px-3 py-1.5 text-xs text-ink-strong">
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent/70" />
+                  New chat
+                </div>
+              )}
+            </div>
+
+            <div className="flex shrink-0 items-stretch border-l border-line">
+              <button
+                onClick={chat.newChat}
+                className="px-2.5 text-sm text-faintest hover:bg-active"
+                title="New chat"
               >
-                <span className="max-w-[12rem] truncate">{baseName(p)}</span>
-                {dirty[p] ? (
-                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
-                ) : null}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    closeTab(p);
-                  }}
-                  className="ml-0.5 shrink-0 rounded px-0.5 text-faintest opacity-0 hover:bg-line-strong hover:text-body group-hover:opacity-100"
-                  title="Close"
-                >
-                  ×
-                </button>
+                ＋
+              </button>
+              <button
+                onClick={toggleHistory}
+                className="px-2.5 text-xs text-muted hover:bg-active"
+                title="Past chats"
+              >
+                History
+              </button>
+            </div>
+
+            {history && (
+              <div className="absolute right-0 top-full z-20 max-h-80 w-72 overflow-auto rounded-b-xl border border-line bg-surface shadow-[var(--shadow-pop)]">
+                {history.length === 0 && (
+                  <div className="px-3 py-3 text-xs text-faintest">No past chats</div>
+                )}
+                {history.map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => {
+                      chat.openChat(s.id, s.title ?? 'Chat');
+                      setHistory(null);
+                    }}
+                    className="block w-full border-b border-line-soft px-3 py-2 text-left last:border-0 hover:bg-surface-2"
+                  >
+                    <div className="truncate text-sm text-ink-strong">{s.title ?? 'Untitled chat'}</div>
+                    <div className="text-[11px] text-faintest">
+                      {s.turns} turns · ${s.costUsd.toFixed(3)} · {s.lastActive.slice(0, 16).replace('T', ' ')}
+                    </div>
+                  </button>
+                ))}
               </div>
-            ))}
+            )}
           </div>
         )}
 
         <div className="min-h-0 flex-1">
-          {!path && (
+          {!path && !chatActive && (
             <div className="flex h-full items-center justify-center text-sm text-faintest">
-              Select a document on the left or create a new one
+              Select a document on the left, or start a chat with the agent
             </div>
           )}
           {openPaths.map((p) => (
             <DocTab
               key={p}
               path={p}
-              active={p === path}
+              active={!chatActive && p === path}
               onDeleted={() => {
                 refreshTree();
                 closeTab(p);
@@ -255,6 +359,30 @@ export function DocsPage() {
               onDirty={(d) => setDirtyFor(p, d)}
             />
           ))}
+          {chat.openChats.map((c) => (
+            <ChatView
+              key={c.id}
+              initialSessionId={c.id}
+              active={chat.activeChat === c.id}
+              models={models}
+              defaultModel={defaultModel}
+              showResultMeta={showResultMeta}
+              expanded
+              onCreated={chat.onChatCreated}
+            />
+          ))}
+          {chat.activeChat === 'draft' && (
+            <ChatView
+              key="draft"
+              initialSessionId={null}
+              active
+              models={models}
+              defaultModel={defaultModel}
+              showResultMeta={showResultMeta}
+              expanded
+              onCreated={chat.onChatCreated}
+            />
+          )}
         </div>
       </div>
     </div>
