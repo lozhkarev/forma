@@ -18,6 +18,17 @@ function lastIndexOf(records: PersistedRecord[], match: (r: PersistedRecord) => 
   return -1;
 }
 
+const OPEN_CHATS_KEY = 'forma:openChats';
+type OpenChat = { id: string; title: string };
+function loadOpenChats(): OpenChat[] {
+  try {
+    const v = JSON.parse(localStorage.getItem(OPEN_CHATS_KEY) ?? '[]');
+    return Array.isArray(v) ? (v as OpenChat[]) : [];
+  } catch {
+    return [];
+  }
+}
+
 export function ChatPanel() {
   const {
     isOpen,
@@ -46,8 +57,20 @@ export function ChatPanel() {
   const [records, setRecords] = useState<PersistedRecord[]>([]);
   const [resolved, setResolved] = useState<Set<string>>(new Set());
   const [history, setHistory] = useState<SessionSummary[] | null>(null);
+  const [openChats, setOpenChats] = useState<OpenChat[]>(loadOpenChats);
   const [panelWidth, setPanelWidth] = useState(392);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    localStorage.setItem(OPEN_CHATS_KEY, JSON.stringify(openChats));
+  }, [openChats]);
+
+  const addOpenChat = (id: string, title: string) =>
+    setOpenChats((o) =>
+      o.some((c) => c.id === id)
+        ? o.map((c) => (c.id === id && title ? { id, title } : c))
+        : [...o, { id, title: title || 'Chat' }],
+    );
 
   // Load the available models once and pick the server default.
   useEffect(() => {
@@ -143,6 +166,7 @@ export function ChatPanel() {
       });
       id = session.id;
       setActiveId(id);
+      addOpenChat(id, text.trim().slice(0, 40));
     } else if (contextPending) {
       // Deliver newly-added context to the ongoing conversation, once.
       const parts: string[] = [];
@@ -217,19 +241,32 @@ export function ChatPanel() {
     setHistory(await api.agent.listSessions());
   };
 
-  const resume = async (summary: SessionSummary) => {
-    await api.agent.resumeSession(summary.id);
-    setPermission(summary.permission);
-    setModel(summary.model);
-    setEffort(summary.effort);
-    setContextDoc(summary.contextDocPath);
+  // Open a chat as the active tab: reattach the session and restore its settings.
+  const openChat = async (id: string) => {
+    const s = await api.agent.resumeSession(id);
+    setPermission(s.permission);
+    setModel(s.model);
+    setEffort(s.effort);
+    setContextDoc(s.contextDocPath);
     setContextLines(null);
     setContextSelText(null);
     setContextPending(false);
     clearContextSelection();
     setResolved(new Set());
     setHistory(null);
-    setActiveId(summary.id);
+    addOpenChat(s.id, s.title ?? 'Chat');
+    setActiveId(id);
+  };
+
+  const closeChat = (id: string) => {
+    const idx = openChats.findIndex((c) => c.id === id);
+    const next = openChats.filter((c) => c.id !== id);
+    setOpenChats(next);
+    if (id === activeId) {
+      const fallback = next[idx] ?? next[idx - 1];
+      if (fallback) void openChat(fallback.id);
+      else newChat();
+    }
   };
 
   if (!isOpen) return null;
@@ -280,13 +317,54 @@ export function ChatPanel() {
         </button>
       </header>
 
+      {(openChats.length > 0 || activeId === null) && (
+        <div className="flex items-stretch overflow-x-auto border-b border-line-soft bg-surface-2/40">
+          {openChats.map((c) => (
+            <div
+              key={c.id}
+              onClick={() => void openChat(c.id)}
+              onAuxClick={(e) => e.button === 1 && closeChat(c.id)}
+              className={clsx(
+                'group flex max-w-[12rem] shrink-0 cursor-pointer items-center gap-1.5 border-r border-line-soft px-3 py-1.5 text-xs',
+                c.id === activeId ? 'bg-panel text-ink-strong' : 'text-muted hover:bg-active/50',
+              )}
+              title={c.title}
+            >
+              <span className="truncate">{c.title || 'Chat'}</span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  closeChat(c.id);
+                }}
+                className="ml-0.5 shrink-0 rounded px-0.5 text-faintest opacity-0 hover:bg-line-strong hover:text-body group-hover:opacity-100"
+                title="Close"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+          {activeId === null && (
+            <div className="flex shrink-0 items-center border-r border-line-soft bg-panel px-3 py-1.5 text-xs text-ink-strong">
+              New chat
+            </div>
+          )}
+          <button
+            onClick={newChat}
+            className="shrink-0 px-2.5 py-1.5 text-sm text-faintest hover:bg-active"
+            title="New chat"
+          >
+            ＋
+          </button>
+        </div>
+      )}
+
       {history && (
         <div className="max-h-64 overflow-auto border-b border-line bg-surface">
           {history.length === 0 && <div className="px-3 py-3 text-xs text-faintest">No past chats</div>}
           {history.map((s) => (
             <button
               key={s.id}
-              onClick={() => resume(s)}
+              onClick={() => void openChat(s.id)}
               className="block w-full border-b border-line-soft px-3 py-2 text-left last:border-0 hover:bg-surface-2"
             >
               <div className="truncate text-sm text-ink-strong">{s.title ?? 'Untitled chat'}</div>
