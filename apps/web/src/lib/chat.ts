@@ -53,6 +53,8 @@ export interface SessionSummary {
   costUsd: number;
   turns: number;
   contextDocPath: string | null;
+  /** Optional folder/project this chat is filed under (null = unfiled). */
+  folder: string | null;
 }
 
 export interface AgentModel {

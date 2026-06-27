@@ -33,6 +33,8 @@ export interface SessionSummary {
   costUsd: number;
   turns: number;
   contextDocPath: string | null;
+  /** Optional folder/project this chat is filed under (null = unfiled). */
+  folder: string | null;
 }
 
 interface RuntimeConfig {
@@ -128,6 +130,7 @@ class EventBus {
 
 export class RuntimeSession {
   title: string | null = null;
+  folder: string | null = null;
   providerSessionId: string | null = null;
   costUsd = 0;
   turns = 0;
@@ -175,6 +178,11 @@ export class RuntimeSession {
     await this.saveMeta();
   }
 
+  async setFolder(folder: string | null): Promise<void> {
+    this.folder = folder?.trim() ? folder.trim() : null;
+    await this.saveMeta();
+  }
+
   summary(): SessionSummary {
     return {
       id: this.id,
@@ -188,6 +196,7 @@ export class RuntimeSession {
       costUsd: this.costUsd,
       turns: this.turns,
       contextDocPath: this.contextDocPath,
+      folder: this.folder,
     };
   }
 
@@ -298,6 +307,7 @@ export class RuntimeSession {
       costUsd: Number(this.costUsd.toFixed(4)),
       turns: this.turns,
       ...(this.contextDocPath ? { contextDoc: this.contextDocPath } : {}),
+      ...(this.folder ? { folder: this.folder } : {}),
     };
     const body = `# ${this.title ?? 'Untitled chat'}\n`;
     await fs.writeFile(path.join(this.dir, 'meta.md'), serializeDoc(frontmatter, body), 'utf8');
@@ -332,6 +342,7 @@ export class AgentRuntime {
     contextSelection?: string;
     model?: string;
     effort?: AgentEffort;
+    folder?: string | null;
   }): Promise<RuntimeSession> {
     const permission = opts.permission ?? 'full';
     const model = opts.model ?? this.config.model ?? 'claude-sonnet-4-6';
@@ -360,6 +371,7 @@ export class AgentRuntime {
       this.semaphore,
     );
     session.effort = effort;
+    session.folder = opts.folder?.trim() ? opts.folder.trim() : null;
     session.onActivity = () => this.armSummary(id);
     session.contextSelection = opts.contextSelection ?? null;
     this.sessions.set(id, session);
@@ -404,6 +416,7 @@ export class AgentRuntime {
     const session = new RuntimeSession(id, dir, permission, model, contextDoc, createdAt, agent, this.semaphore);
     session.effort = effort;
     session.title = typeof frontmatter['title'] === 'string' ? frontmatter['title'] : null;
+    session.folder = typeof frontmatter['folder'] === 'string' ? frontmatter['folder'] : null;
     session.providerSessionId = providerSessionId ?? null;
     session.costUsd = typeof frontmatter['costUsd'] === 'number' ? frontmatter['costUsd'] : 0;
     session.turns = typeof frontmatter['turns'] === 'number' ? frontmatter['turns'] : 0;
@@ -415,6 +428,28 @@ export class AgentRuntime {
 
   get(id: string): RuntimeSession | undefined {
     return this.sessions.get(id);
+  }
+
+  /** File a chat under a folder (or null to unfile). Works without resuming it. */
+  async setSessionFolder(id: string, folder: string | null): Promise<SessionSummary | null> {
+    const value = folder?.trim() ? folder.trim() : null;
+    const live = this.sessions.get(id);
+    if (live) {
+      await live.setFolder(value);
+      return live.summary();
+    }
+    const metaPath = path.join(this.chatsDir, id, 'meta.md');
+    let metaRaw: string;
+    try {
+      metaRaw = await fs.readFile(metaPath, 'utf8');
+    } catch {
+      return null;
+    }
+    const { frontmatter, body } = parseDoc(metaRaw);
+    if (value) frontmatter['folder'] = value;
+    else delete frontmatter['folder'];
+    await fs.writeFile(metaPath, serializeDoc(frontmatter, body), 'utf8');
+    return (await this.listSessions()).find((s) => s.id === id) ?? null;
   }
 
   defaultModel(): string {
@@ -558,6 +593,7 @@ export class AgentRuntime {
           costUsd: (frontmatter['costUsd'] as number) ?? 0,
           turns: (frontmatter['turns'] as number) ?? 0,
           contextDocPath: (frontmatter['contextDoc'] as string) ?? null,
+          folder: (frontmatter['folder'] as string) ?? null,
         });
       } catch {
         // not a chat dir

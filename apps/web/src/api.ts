@@ -142,6 +142,12 @@ export const api = {
         body: JSON.stringify(patch),
       }),
 
+    setFolder: (id: string, folder: string | null) =>
+      request<SessionSummary>(`/api/agent/sessions/${encodeURIComponent(id)}/folder`, {
+        method: 'PATCH',
+        body: JSON.stringify({ folder }),
+      }),
+
     resumeSession: (id: string) =>
       request<SessionSummary>('/api/agent/sessions', {
         method: 'POST',

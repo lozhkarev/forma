@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, API_BASE } from '../../api';
 import {
@@ -27,6 +28,8 @@ interface Props {
   defaultModel: string;
   showResultMeta: boolean;
   expanded: boolean;
+  /** Existing folders to offer when filing this chat. */
+  folders: string[];
   /** Fires when a draft becomes a real session (first message). */
   onCreated: (id: string, title: string) => void;
 }
@@ -40,6 +43,7 @@ export function ChatView({
   defaultModel,
   showResultMeta,
   expanded,
+  folders,
   onCreated,
 }: Props) {
   const {
@@ -50,8 +54,12 @@ export function ChatView({
     contextSelection,
     clearContextSelection,
   } = useChat();
+  const queryClient = useQueryClient();
 
   const [id, setId] = useState<string | null>(initialSessionId);
+  const [folder, setFolder] = useState<string | null>(null);
+  const [folderOpen, setFolderOpen] = useState(false);
+  const [newFolder, setNewFolder] = useState('');
   const [draft, setDraft] = useState('');
   const [permission, setPermission] = useState<PermissionProfile>('full');
   const [model, setModel] = useState<string>(defaultModel);
@@ -76,6 +84,7 @@ export function ChatView({
       setModel(s.model);
       setEffort(s.effort);
       setContextDoc(s.contextDocPath);
+      setFolder(s.folder);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -175,9 +184,61 @@ export function ChatView({
     setEffort(e);
     if (id) void api.agent.updateSession(id, { effort: e });
   };
+  const applyFolder = async (value: string | null) => {
+    setFolder(value);
+    setFolderOpen(false);
+    setNewFolder('');
+    if (id) {
+      await api.agent.setFolder(id, value);
+      void queryClient.invalidateQueries({ queryKey: ['agentSessions'] });
+    }
+  };
 
   return (
     <div className={visible ? 'flex h-full flex-col' : 'hidden'}>
+      {id && (
+        <div className="relative flex shrink-0 items-center justify-end border-b border-line-soft px-3 py-1">
+          <button
+            onClick={() => setFolderOpen((o) => !o)}
+            className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-muted hover:bg-active"
+            title="File this chat under a folder"
+          >
+            <span className="opacity-70">📁</span>
+            {folder ?? 'No folder'}
+          </button>
+          {folderOpen && (
+            <div className="absolute right-2 top-full z-20 w-56 rounded-lg border border-line bg-surface p-1 shadow-[var(--shadow-pop)]">
+              <button
+                onClick={() => void applyFolder(null)}
+                className="block w-full rounded px-2 py-1 text-left text-xs text-muted hover:bg-active"
+              >
+                No folder {folder === null && '✓'}
+              </button>
+              {folders.map((f) => (
+                <button
+                  key={f}
+                  onClick={() => void applyFolder(f)}
+                  className="block w-full truncate rounded px-2 py-1 text-left text-xs text-ink-strong hover:bg-active"
+                >
+                  {f} {f === folder && '✓'}
+                </button>
+              ))}
+              <div className="mt-1 border-t border-line-soft p-1">
+                <input
+                  value={newFolder}
+                  onChange={(e) => setNewFolder(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newFolder.trim()) void applyFolder(newFolder.trim());
+                    if (e.key === 'Escape') setFolderOpen(false);
+                  }}
+                  placeholder="New folder…"
+                  className="w-full rounded border border-line-strong px-1.5 py-1 text-xs focus:border-accent-border focus:outline-none"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       <div className="flex-1 overflow-auto">
         <div className={expanded ? 'mx-auto w-full max-w-3xl px-6 py-4' : 'px-3 py-4'}>
           {items.length === 0 && !contextDoc && (

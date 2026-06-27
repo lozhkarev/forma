@@ -13,6 +13,8 @@ interface CreateBody {
   contextSelection?: string;
   model?: string;
   effort?: AgentEffort;
+  /** Folder/project to file the new chat under. */
+  folder?: string | null;
   /** Reattach to an existing persisted chat instead of creating a new one. */
   resume?: string;
 }
@@ -53,8 +55,19 @@ export function createAgentRoutes(runtime: AgentRuntime): Hono {
       contextSelection: body.contextSelection,
       model: body.model,
       effort: body.effort,
+      folder: body.folder,
     });
     return c.json(session.summary(), 201);
+  });
+
+  // File a chat under a folder (or null to unfile). Works for non-live chats.
+  app.patch('/sessions/:id/folder', async (c) => {
+    const body = await c.req
+      .json<{ folder?: string | null }>()
+      .catch(() => ({}) as { folder?: string | null });
+    const summary = await runtime.setSessionFolder(c.req.param('id'), body.folder ?? null);
+    if (!summary) throw new VaultError(`chat not found: ${c.req.param('id')}`, 404);
+    return c.json(summary);
   });
 
   // Change model / permission / reasoning effort on a live session.

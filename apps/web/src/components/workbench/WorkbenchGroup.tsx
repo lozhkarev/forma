@@ -37,17 +37,34 @@ function DocTab({
   );
 }
 
+function ChatRow({ s, onOpen }: { s: SessionSummary; onOpen: () => void }) {
+  return (
+    <button
+      onClick={onOpen}
+      className="block w-full border-b border-line-soft px-3 py-2 text-left last:border-0 hover:bg-surface-2"
+    >
+      <div className="truncate text-sm text-ink-strong">{s.title ?? 'Untitled chat'}</div>
+      <div className="text-[11px] text-faintest">
+        {s.turns} turns · ${s.costUsd.toFixed(3)} · {s.lastActive.slice(0, 16).replace('T', ' ')}
+      </div>
+    </button>
+  );
+}
+
 export function WorkbenchGroup({ group, isActiveGroup }: { group: WGroup; isActiveGroup: boolean }) {
   const wb = useChat();
   const queryClient = useQueryClient();
   const [dirty, setDirty] = useState<Record<string, boolean>>({});
-  const [history, setHistory] = useState<SessionSummary[] | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const modelsQ = useQuery({ queryKey: ['agentModels'], queryFn: api.agent.listModels });
   const models = modelsQ.data?.models ?? [];
   const defaultModel = modelsQ.data?.default ?? '';
   const prefs = useQuery({ queryKey: ['prefs'], queryFn: api.settings.prefs });
   const showResultMeta = prefs.data?.chatResultMeta ?? false;
+  const sessionsQ = useQuery({ queryKey: ['agentSessions'], queryFn: api.agent.listSessions });
+  const sessions = sessionsQ.data ?? [];
+  const folders = [...new Set(sessions.map((s) => s.folder).filter((f): f is string => !!f))].sort();
 
   const setDirtyFor = (id: string, d: boolean) =>
     setDirty((m) => (m[id] === d ? m : { ...m, [id]: d }));
@@ -70,7 +87,26 @@ export function WorkbenchGroup({ group, isActiveGroup }: { group: WGroup; isActi
     if (id) wb.moveTab(id, group.id, index);
   };
 
-  const toggleHistory = async () => setHistory(history ? null : await api.agent.listSessions());
+  const toggleHistory = () => {
+    if (!historyOpen) void sessionsQ.refetch();
+    setHistoryOpen((o) => !o);
+  };
+  const openFromHistory = (s: SessionSummary) => {
+    wb.focusGroup(group.id);
+    wb.openChat(s.id, s.title ?? 'Chat');
+    setHistoryOpen(false);
+  };
+
+  // Group past chats by folder for the History dropdown; unfiled chats last.
+  const byFolder = new Map<string, SessionSummary[]>();
+  for (const s of sessions) {
+    const key = s.folder ?? '';
+    const list = byFolder.get(key) ?? [];
+    list.push(s);
+    byFolder.set(key, list);
+  }
+  const folderSections = [...folders.map((f) => [f, byFolder.get(f) ?? []] as const)];
+  const unfiled = byFolder.get('') ?? [];
 
   return (
     <div
@@ -159,24 +195,25 @@ export function WorkbenchGroup({ group, isActiveGroup }: { group: WGroup; isActi
           )}
         </div>
 
-        {history && (
-          <div className="absolute right-0 top-full z-20 max-h-80 w-72 overflow-auto rounded-b-xl border border-line bg-surface shadow-[var(--shadow-pop)]">
-            {history.length === 0 && <div className="px-3 py-3 text-xs text-faintest">No past chats</div>}
-            {history.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => {
-                  wb.focusGroup(group.id);
-                  wb.openChat(s.id, s.title ?? 'Chat');
-                  setHistory(null);
-                }}
-                className="block w-full border-b border-line-soft px-3 py-2 text-left last:border-0 hover:bg-surface-2"
-              >
-                <div className="truncate text-sm text-ink-strong">{s.title ?? 'Untitled chat'}</div>
-                <div className="text-[11px] text-faintest">
-                  {s.turns} turns · ${s.costUsd.toFixed(3)} · {s.lastActive.slice(0, 16).replace('T', ' ')}
+        {historyOpen && (
+          <div className="absolute right-0 top-full z-20 max-h-96 w-72 overflow-auto rounded-b-xl border border-line bg-surface shadow-[var(--shadow-pop)]">
+            {sessions.length === 0 && <div className="px-3 py-3 text-xs text-faintest">No past chats</div>}
+            {folderSections.map(([name, list]) => (
+              <div key={name}>
+                <div className="sticky top-0 flex items-center gap-1 bg-surface-2/80 px-3 py-1 text-[11px] font-medium text-faint backdrop-blur">
+                  <span className="opacity-70">📁</span>
+                  {name}
                 </div>
-              </button>
+                {list.map((s) => (
+                  <ChatRow key={s.id} s={s} onOpen={() => openFromHistory(s)} />
+                ))}
+              </div>
+            ))}
+            {unfiled.length > 0 && folders.length > 0 && (
+              <div className="px-3 py-1 text-[11px] font-medium text-faintest">Unfiled</div>
+            )}
+            {unfiled.map((s) => (
+              <ChatRow key={s.id} s={s} onOpen={() => openFromHistory(s)} />
             ))}
           </div>
         )}
@@ -216,6 +253,7 @@ export function WorkbenchGroup({ group, isActiveGroup }: { group: WGroup; isActi
               defaultModel={defaultModel}
               showResultMeta={showResultMeta}
               expanded
+              folders={folders}
               onCreated={(sid, title) => wb.onChatCreated(id, sid, title)}
             />
           );
