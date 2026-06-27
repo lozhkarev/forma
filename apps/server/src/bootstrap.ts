@@ -135,6 +135,22 @@ sources: []
 интеллектуальная работа делегируется подключённому агенту.
 `,
 
+    'knowledge/log.md': `---
+title: Knowledge log
+---
+
+# Журнал знаний
+
+Append-only лог ингеста: что пришло, во что дистиллировано, куда уехал источник.
+Новые записи — сверху. Точную полную историю изменений ведёт git; здесь —
+человекочитаемая хроника наполнения второго мозга, её ведёт librarian.
+
+<!-- Пример записи (дописывает librarian):
+## 2026-06-27
+- ingested [Заголовок](raw/2026-06-27-foo.md) → обновил [Тема](wiki/topic.md)
+-->
+`,
+
     'work/inbox/welcome.md': `---
 title: Разобрать первые заметки
 status: inbox
@@ -285,9 +301,11 @@ description: Distill items from the knowledge inbox into linked wiki pages with 
    "* [Заголовок](page.md) — короткое описание". Frontmatter index.md не трогай.
 4. Обработанный источник перенеси \`knowledge/inbox/\` → \`knowledge/raw/\`
    (он остаётся как цитируемый источник). Инбокс должен пустеть.
+5. Допиши запись в \`knowledge/log.md\` (сверху, под заголовком): дата, что
+   пришло (ссылка на источник в raw/), какие wiki-страницы создал/обновил.
 
 Имена файлов — латиницей, kebab-case. Не дублируй существующие страницы —
-лучше дополни. Источник истины — markdown в vault.
+лучше дополни. \`README.md\` в inbox пропускай. Источник истины — markdown в vault.
 `,
 
     'agents/secretary.md': `---
@@ -342,21 +360,22 @@ journal/<сегодня>.md под разделом "## Напоминания" 
     'agents/librarian.md': `---
 name: librarian
 trigger:
-  type: cron
-  schedule: "0 2 * * *"
+  type: event
+  glob: knowledge/inbox/**
 permissions: vault-write
 budget: { maxTurns: 40 }
 output: knowledge/wiki/
 enabled: false
 ---
 
-Поддерживай базу знаний (используй подход навыка distill).
+Срабатывает на новый источник в knowledge/inbox/ — разбери его (используй
+подход навыка distill).
 
-Разбери новое в knowledge/inbox/ и выжимки в chats/*/summary.md: обнови или
-создай страницы в knowledge/wiki/ с frontmatter sources:, поддержи карту
-knowledge/wiki/index.md, а обработанные источники перенеси в knowledge/raw/.
-Работай инкрементально: не переписывай всё, дополняй. Если нового нет —
-ничего не меняй.
+Дистиллируй содержимое в knowledge/wiki/ (создай/дополни страницы с
+frontmatter sources:), поддержи карту knowledge/wiki/index.md, допиши запись в
+knowledge/log.md, а обработанный источник перенеси в knowledge/raw/ (инбокс
+должен пустеть). README.md в инбоксе пропускай. Работай инкрементально: не
+переписывай всё, дополняй.
 `,
 
     'agents/weekly-report.md': `---

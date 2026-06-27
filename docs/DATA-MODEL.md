@@ -38,6 +38,7 @@ vault/
 │   │   └── 2026-06-13-some-article.md
 │   ├── raw/                    # архив УЖЕ обработанных источников (wiki ссылается сюда)
 │   │   └── 2026-06-13-arc-vfs.md
+│   ├── log.md                  # append-only хроника ингеста (ведёт librarian)
 │   └── wiki/                   # дистиллят
 │       ├── index.md            # карта знаний (агент поддерживает)
 │       └── arc/vfs-design.md
