@@ -19,4 +19,5 @@ export interface SkillInfo {
 
 export interface Prefs {
   gitAutocommit: boolean;
+  chatResultMeta: boolean;
 }

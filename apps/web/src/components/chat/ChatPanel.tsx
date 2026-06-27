@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query';
 import clsx from 'clsx';
 import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { api, API_BASE } from '../../api';
@@ -60,6 +61,8 @@ export function ChatPanel() {
   const [openChats, setOpenChats] = useState<OpenChat[]>(loadOpenChats);
   const [panelWidth, setPanelWidth] = useState(392);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const prefs = useQuery({ queryKey: ['prefs'], queryFn: api.settings.prefs });
+  const showResultMeta = prefs.data?.chatResultMeta ?? false;
 
   useEffect(() => {
     localStorage.setItem(OPEN_CHATS_KEY, JSON.stringify(openChats));
@@ -389,6 +392,7 @@ export function ChatPanel() {
             onPermission={onPermission}
             thinking={thinking}
             streaming={busy}
+            showResultMeta={showResultMeta}
           />
           <div ref={bottomRef} />
         </div>

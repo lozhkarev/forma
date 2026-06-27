@@ -207,34 +207,59 @@ function ServerForm({
   );
 }
 
-function GitSetting() {
+function PrefsSection() {
   const queryClient = useQueryClient();
   const prefs = useQuery({ queryKey: ['prefs'], queryFn: api.settings.prefs });
   const toggle = useMutation({
-    mutationFn: (gitAutocommit: boolean) => api.settings.patchPrefs({ gitAutocommit }),
+    mutationFn: (patch: Partial<{ gitAutocommit: boolean; chatResultMeta: boolean }>) =>
+      api.settings.patchPrefs(patch),
     onSuccess: (next) => queryClient.setQueryData(['prefs'], next),
   });
-  const on = prefs.data?.gitAutocommit ?? false;
+  const busy = prefs.isLoading || toggle.isPending;
+
+  const Row = ({
+    checked,
+    onChange,
+    title,
+    desc,
+  }: {
+    checked: boolean;
+    onChange: (v: boolean) => void;
+    title: string;
+    desc: string;
+  }) => (
+    <label className="flex cursor-pointer items-center gap-3 border-b border-line-soft px-4 py-3 last:border-0">
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={busy}
+        onChange={(e) => onChange(e.target.checked)}
+        className="h-4 w-4 accent-[var(--color-accent)]"
+      />
+      <div className="min-w-0 flex-1">
+        <div className="text-sm font-medium">{title}</div>
+        <div className="text-xs text-faintest">{desc}</div>
+      </div>
+    </label>
+  );
 
   return (
     <section className="mb-10">
-      <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">Git history</h2>
-      <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-line bg-surface px-4 py-3 shadow-sm">
-        <input
-          type="checkbox"
-          checked={on}
-          disabled={prefs.isLoading || toggle.isPending}
-          onChange={(e) => toggle.mutate(e.target.checked)}
-          className="h-4 w-4 accent-[var(--color-accent)]"
+      <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">Preferences</h2>
+      <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
+        <Row
+          checked={prefs.data?.gitAutocommit ?? false}
+          onChange={(v) => toggle.mutate({ gitAutocommit: v })}
+          title="Keep a git history of the vault"
+          desc="On first enable, runs git init and commits the vault, then autocommits edits and agent runs."
         />
-        <div className="min-w-0 flex-1">
-          <div className="text-sm font-medium">Keep a git history of the vault</div>
-          <div className="text-xs text-faintest">
-            On first enable, runs <span className="font-mono">git init</span> and commits the vault,
-            then autocommits edits and agent runs. Turn off to stop committing.
-          </div>
-        </div>
-      </label>
+        <Row
+          checked={prefs.data?.chatResultMeta ?? false}
+          onChange={(v) => toggle.mutate({ chatResultMeta: v })}
+          title="Show turn/cost line in chat"
+          desc="Append “done · N turns · $cost” at the end of each agent reply."
+        />
+      </div>
     </section>
   );
 }
@@ -262,7 +287,7 @@ export function SettingsPage() {
       </p>
 
       <VaultSection />
-      <GitSetting />
+      <PrefsSection />
       {isDesktop && <DesktopSettings />}
 
       <section className="mb-10">

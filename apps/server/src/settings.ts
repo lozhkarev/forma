@@ -19,9 +19,11 @@ export interface SkillInfo {
 export interface Prefs {
   /** Keep a git history of the vault (init + autocommit). */
   gitAutocommit: boolean;
+  /** Show the per-turn cost/turns line at the end of an agent reply. */
+  chatResultMeta: boolean;
 }
 
-const DEFAULT_PREFS: Prefs = { gitAutocommit: true };
+const DEFAULT_PREFS: Prefs = { gitAutocommit: true, chatResultMeta: false };
 
 function safeName(name: string): string {
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(name)) {

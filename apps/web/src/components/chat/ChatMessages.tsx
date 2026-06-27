@@ -10,6 +10,8 @@ interface Props {
   /** A reply is still streaming — render the last assistant block as plain
    *  text (avoids re-parsing markdown on every token); markdown once settled. */
   streaming: boolean;
+  /** Show the turns/cost detail on the result line (pref, off by default). */
+  showResultMeta: boolean;
 }
 
 function AgentAvatar() {
@@ -72,7 +74,14 @@ function PermissionCard({
   );
 }
 
-export function ChatMessages({ items, resolvedPermissions, onPermission, thinking, streaming }: Props) {
+export function ChatMessages({
+  items,
+  resolvedPermissions,
+  onPermission,
+  thinking,
+  streaming,
+  showResultMeta,
+}: Props) {
   const lastIdx = items.length - 1;
   return (
     <div className="flex flex-col gap-4">
@@ -121,8 +130,14 @@ export function ChatMessages({ items, resolvedPermissions, onPermission, thinkin
             return (
               <div key={item.key} className="flex items-center gap-2 text-[11px] text-faintest">
                 <span className="h-px flex-1 bg-line" />
-                {item.ok ? 'done' : 'stopped'} · {item.turns} turns
-                {item.costUsd != null && ` · $${item.costUsd.toFixed(3)}`}
+                {item.ok ? 'done' : 'stopped'}
+                {showResultMeta && (
+                  <>
+                    {' · '}
+                    {item.turns} turns
+                    {item.costUsd != null && ` · $${item.costUsd.toFixed(3)}`}
+                  </>
+                )}
                 <span className="h-px flex-1 bg-line" />
               </div>
             );
