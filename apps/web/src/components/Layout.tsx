@@ -136,7 +136,14 @@ function SearchBox() {
                 i === selected ? 'bg-active' : 'hover:bg-surface-2',
               )}
             >
-              <div className="font-medium text-ink-strong">{hit.title}</div>
+              <div className="flex items-center gap-1.5">
+                <span className="min-w-0 flex-1 truncate font-medium text-ink-strong">
+                  {hit.title}
+                </span>
+                <span className="shrink-0 rounded bg-chip px-1.5 py-0.5 text-[10px] text-faint">
+                  {hit.zone}
+                </span>
+              </div>
               <div
                 className="truncate text-xs text-faint"
                 dangerouslySetInnerHTML={{ __html: hit.snippet }}

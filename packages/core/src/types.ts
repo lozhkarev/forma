@@ -114,6 +114,7 @@ export interface SearchHit {
   path: string;
   title: string;
   snippet: string;
+  zone: Zone;
 }
 
 export interface VaultEvent {

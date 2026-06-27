@@ -6,6 +6,7 @@ import chokidar, { type FSWatcher } from 'chokidar';
 import {
   buildNameIndex,
   detectKind,
+  detectZone,
   extractLinks,
   parseDoc,
   resolveLink,
@@ -21,10 +22,15 @@ import {
 } from '@forma/core';
 import type { VaultService } from './vault.js';
 
+// Bump when the derived schema changes — the index is disposable, so on a
+// version mismatch we drop the tables and reindex from the files (source of truth).
+const SCHEMA_VERSION = 2;
+
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS documents (
   path TEXT PRIMARY KEY,
   kind TEXT NOT NULL,
+  zone TEXT NOT NULL,
   title TEXT NOT NULL,
   frontmatter TEXT NOT NULL,
   mtime INTEGER NOT NULL
@@ -67,7 +73,18 @@ export class IndexService extends EventEmitter {
     const dbPath = path.join(vault.root, '.forma', 'index.db');
     this.db = new DatabaseSync(dbPath);
     this.db.exec('PRAGMA journal_mode = WAL;');
+    this.migrate();
     this.db.exec(SCHEMA);
+  }
+
+  /** Drop derived tables when the schema version moved (index is rebuilt anyway). */
+  private migrate(): void {
+    const row = this.db.prepare('PRAGMA user_version').get() as { user_version: number };
+    if (row.user_version >= SCHEMA_VERSION) return;
+    for (const table of ['documents', 'tasks', 'projects', 'docs_fts', 'links']) {
+      this.db.exec(`DROP TABLE IF EXISTS ${table};`);
+    }
+    this.db.exec(`PRAGMA user_version = ${SCHEMA_VERSION};`);
   }
 
   async reindexAll(): Promise<number> {
@@ -102,12 +119,15 @@ export class IndexService extends EventEmitter {
 
     const { frontmatter, body } = parseDoc(content);
     const kind = detectKind(relPath, frontmatter);
+    const zone = detectZone(relPath);
     const title = resolveTitle(relPath, frontmatter, body);
 
     this.deleteRows(relPath);
     this.db
-      .prepare('INSERT INTO documents (path, kind, title, frontmatter, mtime) VALUES (?, ?, ?, ?, ?)')
-      .run(relPath, kind, title, JSON.stringify(frontmatter), mtimeMs);
+      .prepare(
+        'INSERT INTO documents (path, kind, zone, title, frontmatter, mtime) VALUES (?, ?, ?, ?, ?, ?)',
+      )
+      .run(relPath, kind, zone, title, JSON.stringify(frontmatter), mtimeMs);
     this.db.prepare('INSERT INTO docs_fts (path, title, body) VALUES (?, ?, ?)').run(relPath, title, body);
 
     const insertLink = this.db.prepare('INSERT INTO links (source, target, kind) VALUES (?, ?, ?)');
@@ -307,8 +327,11 @@ export class IndexService extends EventEmitter {
     const match = tokens.map((t) => `"${t.replace(/"/g, '""')}"*`).join(' ');
     const rows = this.db
       .prepare(
-        `SELECT path, title, snippet(docs_fts, 2, '<mark>', '</mark>', '…', 16) AS snippet
-         FROM docs_fts WHERE docs_fts MATCH ? ORDER BY rank LIMIT 20`,
+        `SELECT f.path AS path, f.title AS title,
+                snippet(docs_fts, 2, '<mark>', '</mark>', '…', 16) AS snippet,
+                d.zone AS zone
+         FROM docs_fts f JOIN documents d ON d.path = f.path
+         WHERE docs_fts MATCH ? ORDER BY rank LIMIT 20`,
       )
       .all(match) as Array<Record<string, unknown>>;
     return rows as unknown as SearchHit[];
