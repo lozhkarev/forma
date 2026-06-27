@@ -34,7 +34,9 @@
 ```
 vault/
 ├── knowledge/                  # Resources — агентский «второй мозг»
-│   ├── raw/                    # knowledge-инбокс + архив источников
+│   ├── inbox/                  # ⬇︎ СВАЛКА: кидаешь сюда страницы/доки/файлы, без агента
+│   │   └── 2026-06-13-some-article.md
+│   ├── raw/                    # архив УЖЕ обработанных источников (wiki ссылается сюда)
 │   │   └── 2026-06-13-arc-vfs.md
 │   └── wiki/                   # дистиллят
 │       ├── index.md            # карта знаний (агент поддерживает)
@@ -49,8 +51,10 @@ vault/
 │   │   └── area.md
 │   └── archive/                # done/inactive P и A (перенос janitor'ом)
 │       └── projects/<slug>/...
-├── memory/                     # выученное агентом
-│   └── preferences/planning.md
+├── memory/                     # выученное агентом (подпапки по kind)
+│   ├── preferences/planning.md
+│   ├── recipes/inbox-triage.md
+│   └── facts/people.md
 ├── journal/                    # ops: дневные планы/итоги YYYY-MM-DD.md
 ├── chats/                      # ops: история диалогов
 ├── reports/                    # ops: сгенерированные отчёты
@@ -59,8 +63,30 @@ vault/
 └── .forma/                     # index.db, runs/ (gitignored)
 ```
 
-Два инбокса по намерению: **`work/inbox/`** (actionable) и **`knowledge/raw/`**
-(reference, он же knowledge-инбокс). См. §1 ответа выше.
+Два инбокса по намерению: **`work/inbox/`** (actionable — разобрать в проекты/задачи)
+и **`knowledge/inbox/`** (reference — ингест во второй мозг).
+
+### Воркфлоу ингеста знаний (сценарии 1–2)
+
+Сценарий: пользователь **без агента** кидает несвязанные страницы/доки/файлы,
+потом хочет, чтобы агент это обработал и положил во второй мозг.
+
+1. **Свалка.** Кидаешь что угодно в `knowledge/inbox/` — в любой момент, без
+   структуры, можно несвязанное. Принимаются `.md`/текст; для прочего (PDF,
+   html, картинка) агент извлечёт содержимое. (Сценарий 1: система сама
+   скачивает страницу/файл — кладёт сюда же.)
+2. **Триггер.** Librarian-агент запускается на добавление файлов в
+   `knowledge/inbox/**` (event-trigger, дебаунс/батч) — то есть **сам**, без
+   твоего участия. Плюс ручное «разбери knowledge-инбокс».
+3. **Дистилляция.** Для каждого элемента: читает → определяет тему(ы) →
+   создаёт/**обновляет** нужную `wiki/<topic>.md` (мёрж, не дубли) → проставляет
+   `sources:` → обновляет `wiki/index.md`.
+4. **Дренаж.** Обработанный источник **переезжает** `knowledge/inbox/` →
+   `knowledge/raw/`. Инбокс на глазах пустеет; «что ждёт обработки» = что лежит в
+   `inbox/`. `raw/` — архив источников, на которые ссылается wiki.
+
+Итог: ты просто бросаешь в одну папку и забываешь; второй мозг наполняется сам,
+а очередь видна как содержимое `knowledge/inbox/`.
 
 ## 3. Виды документов (`kind`) и вывод зоны
 
@@ -69,11 +95,13 @@ vault/
 
 | Путь | `kind` | `zone` |
 |---|---|---|
-| `knowledge/wiki/**` | `wiki` | knowledge |
+| `knowledge/inbox/**` | `raw` | knowledge |
 | `knowledge/raw/**` | `raw` | knowledge |
+| `knowledge/wiki/**` | `wiki` | knowledge |
 | `work/projects/<slug>/project.md` | `project` | work |
 | `work/projects/<slug>/tasks/**` | `task` | work |
-| `work/areas/<slug>/area.md` | `area` | work |
+| `work/areas/<slug>/area.md` | `area` (файл опционален) | work |
+| `work/areas/<slug>/**` (без area.md) | `note` | work |
 | `work/inbox/**` | `task` (если есть `status`) иначе `note` | work |
 | `work/archive/**` | как исходный (`project`/`task`/`area`), `status: archived` | work |
 | `memory/**` | `memory` | memory |
@@ -202,10 +230,10 @@ confidence: low|medium|high*
 | Сейчас | Станет |
 |---|---|
 | `wiki/**` | `knowledge/wiki/**` |
-| `raw/**` | `knowledge/raw/**` |
+| `raw/**` | `knowledge/raw/**` (архив источников) |
 | `projects/**` | `work/projects/**` |
 | `inbox/**` | `work/inbox/**` |
-| (нет) | `work/areas/`, `work/archive/`, `memory/` |
+| (нет, пустые) | `knowledge/inbox/`, `work/areas/`, `work/archive/`, `memory/{preferences,recipes,facts}/` |
 | `journal/ chats/ reports/ agents/ .claude/ .forma/` | без изменений |
 
 - `detectKind`, `bootstrap`, индекс (`zone`, `area`, `deps`) — обновить под §3/§5.
@@ -214,8 +242,12 @@ confidence: low|medium|high*
 - Bootstrap нового vault — генерирует структуру §2 с seed-контентом и зональными
   README, чтобы при первом запуске сразу была правильная раскладка.
 
-## 11. Открытые вопросы
+## 11. Решено
 
-- Нужен ли `work/areas/<slug>/area.md` всегда, или область может быть просто папкой?
-- `memory/` — плоско или по `kind` (preferences/recipes/facts)?
-- Глобальный поиск: смешивать зоны с метками или вкладки по зонам?
+- **Area**: `area.md` опционален — область может быть просто папкой-контейнером;
+  файл есть, если у области есть цель/ритм ревью.
+- **`memory/`**: подпапки по `kind` (`preferences/`, `recipes/`, `facts/`).
+- **Глобальный поиск**: единый список с метками зоны `[knowledge]/[work]/…`;
+  фильтрация по area/zone — позже.
+- **Knowledge-инбокс**: явный `knowledge/inbox/` (drain-able), `raw/` — архив
+  обработанных источников. См. воркфлоу в §2.
