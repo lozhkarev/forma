@@ -11,11 +11,31 @@ import { editorExtensions } from './editor/extensions';
 import { selectionHighlightKey } from './editor/selectionHighlight';
 import { Properties } from './Properties';
 
+const LIST_ITEM = /^[ \t]*(?:[-*+]|\d+[.)])\s/;
+
+/** Collapse blank lines tiptap-markdown inserts between list items, so a tight
+ *  list stays tight on round-trip (it serializes lists as "loose"). */
+function tightenLists(md: string): string {
+  const lines = md.split('\n');
+  const out: string[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (
+      lines[i] === '' &&
+      LIST_ITEM.test(out[out.length - 1] ?? '') &&
+      LIST_ITEM.test(lines[i + 1] ?? '')
+    ) {
+      continue; // drop the blank line between two list items
+    }
+    out.push(lines[i]);
+  }
+  return out.join('\n');
+}
+
 function getMarkdown(editor: TiptapEditor): string {
   const md = (editor.storage as unknown as { markdown: { getMarkdown(): string } }).markdown.getMarkdown();
   // tiptap-markdown escapes `[`/`]`; unescape the double brackets so
   // [[wiki-links]] round-trip as text (single \[ stays escaped).
-  return md.replace(/\\\[\\\[/g, '[[').replace(/\\\]\\\]/g, ']]');
+  return tightenLists(md.replace(/\\\[\\\[/g, '[[').replace(/\\\]\\\]/g, ']]'));
 }
 
 interface Props {

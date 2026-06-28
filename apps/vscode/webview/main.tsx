@@ -18,11 +18,31 @@ interface HostMessage {
   text: string;
 }
 
+const LIST_ITEM = /^[ \t]*(?:[-*+]|\d+[.)])\s/;
+
+/** Collapse blank lines that tiptap-markdown inserts between list items, so a
+ *  tight list stays tight on round-trip (it serializes lists as "loose"). */
+function tightenLists(md: string): string {
+  const lines = md.split('\n');
+  const out: string[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (
+      lines[i] === '' &&
+      LIST_ITEM.test(out[out.length - 1] ?? '') &&
+      LIST_ITEM.test(lines[i + 1] ?? '')
+    ) {
+      continue; // drop the blank line between two list items
+    }
+    out.push(lines[i]);
+  }
+  return out.join('\n');
+}
+
 /** Serialize the editor body back to Markdown (mirrors the Forma web editor). */
 function getMarkdown(editor: Editor): string {
   const md = (editor.storage as unknown as { markdown: { getMarkdown(): string } }).markdown.getMarkdown();
   // tiptap-markdown escapes `[`/`]`; keep [[wiki-links]] readable.
-  return md.replace(/\\\[\\\[/g, '[[').replace(/\\\]\\\]/g, ']]');
+  return tightenLists(md.replace(/\\\[\\\[/g, '[[').replace(/\\\]\\\]/g, ']]'));
 }
 
 /** Split a leading YAML frontmatter block off the body, preserving it verbatim
