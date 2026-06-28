@@ -10,7 +10,7 @@ AI-воркспейс: база знаний + задачи в локально�
 
 ```bash
 npm install            # зависимости (Node ≥ 24, npm workspaces)
-npm run dev            # сервер :8787 + веб :5173 (vault в ./vault)
+npm run dev            # сервер :8787 + веб :5173 (vault: $FORMA_VAULT или ~/FormaVault)
 npm run typecheck      # tsc во всех пакетах — гонять после правок
 npm run build          # прод-сборка (web: tsc + vite build)
 npm run dev:server     # только API-сервер
