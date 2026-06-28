@@ -1,0 +1,153 @@
+:root {
+  color-scheme: light dark;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--vscode-editor-background);
+  color: var(--vscode-editor-foreground, var(--vscode-foreground));
+  font-family: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+}
+
+#root {
+  height: 100%;
+  overflow: auto;
+}
+
+/* Centered reading column, Notion-style. */
+.forma-doc {
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 2.5rem 3rem 6rem;
+  outline: none;
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.forma-doc:focus {
+  outline: none;
+}
+
+.forma-doc > * + * {
+  margin-top: 0.6em;
+}
+
+.forma-doc h1,
+.forma-doc h2,
+.forma-doc h3 {
+  font-weight: 650;
+  line-height: 1.25;
+  margin-top: 1.6em;
+}
+.forma-doc h1 {
+  font-size: 1.9em;
+}
+.forma-doc h2 {
+  font-size: 1.5em;
+}
+.forma-doc h3 {
+  font-size: 1.2em;
+}
+
+.forma-doc p {
+  margin: 0;
+}
+
+.forma-doc a {
+  color: var(--vscode-textLink-foreground);
+  text-decoration: none;
+}
+.forma-doc a:hover {
+  text-decoration: underline;
+}
+
+.forma-doc ul,
+.forma-doc ol {
+  padding-left: 1.4em;
+  margin: 0;
+}
+.forma-doc li {
+  margin: 0.15em 0;
+}
+
+.forma-doc blockquote {
+  border-left: 3px solid var(--vscode-textBlockQuote-border, var(--vscode-panel-border));
+  margin: 0.6em 0;
+  padding-left: 1em;
+  color: var(--vscode-descriptionForeground);
+}
+
+.forma-doc hr {
+  border: none;
+  border-top: 1px solid var(--vscode-panel-border);
+  margin: 1.5em 0;
+}
+
+.forma-doc code {
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.88em;
+  background: var(--vscode-textCodeBlock-background, rgba(127, 127, 127, 0.15));
+  border-radius: 4px;
+  padding: 0.12em 0.35em;
+}
+
+.forma-doc pre {
+  background: var(--vscode-textCodeBlock-background, rgba(127, 127, 127, 0.12));
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 8px;
+  padding: 0.9em 1em;
+  overflow-x: auto;
+}
+.forma-doc pre code {
+  background: none;
+  padding: 0;
+}
+
+/* Task list (checkboxes). */
+.forma-doc ul[data-type='taskList'] {
+  list-style: none;
+  padding-left: 0.2em;
+}
+.forma-doc ul[data-type='taskList'] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5em;
+}
+.forma-doc ul[data-type='taskList'] li > label {
+  margin-top: 0.18em;
+  user-select: none;
+}
+.forma-doc ul[data-type='taskList'] li > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.forma-doc ul[data-type='taskList'] input[type='checkbox'] {
+  accent-color: var(--vscode-textLink-foreground);
+  cursor: pointer;
+}
+
+/* Toggle (details). */
+.forma-doc details {
+  border-radius: 6px;
+  padding: 0.1em 0;
+}
+.forma-doc summary {
+  cursor: pointer;
+  font-weight: 550;
+}
+
+/* Placeholder hints on empty blocks. */
+.forma-doc p.is-empty::before,
+.forma-doc h1.is-empty::before,
+.forma-doc h2.is-empty::before,
+.forma-doc h3.is-empty::before {
+  content: attr(data-placeholder);
+  color: var(--vscode-descriptionForeground);
+  opacity: 0.55;
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
